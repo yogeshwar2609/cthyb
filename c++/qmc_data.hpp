@@ -43,10 +43,10 @@ struct qmc_data {
 
  /// This callable object adapts the Delta function for the call of the det.
  struct delta_block_adaptor {
-  gf_const_view<imtime> delta_block;
+  gf_const_view<imtime,matrix_valued,no_tail> delta_block;
 
   // FIXME COMMENT : can remove all of this, the const prevent = anyway ...
-  delta_block_adaptor(gf_const_view<imtime> const &delta_block) : delta_block(delta_block) {}
+  delta_block_adaptor(gf_const_view<imtime,matrix_valued,no_tail> const &delta_block) : delta_block(delta_block) {}
   delta_block_adaptor(delta_block_adaptor const &) = default;
   delta_block_adaptor(delta_block_adaptor &&) = default;
   delta_block_adaptor &operator=(delta_block_adaptor const &) = delete; // forbid assignment
@@ -66,7 +66,7 @@ struct qmc_data {
 
  // Construction
  qmc_data(double beta, solve_parameters_t const &p, sorted_spaces const &sosp, std::map<std::pair<int,int>,int> linindex,
-          block_gf_const_view<imtime> delta, std::vector<int> n_inner)
+          block_gf_const_view<imtime,matrix_valued,no_tail> delta, std::vector<int> n_inner)
     : config(beta),
       tau_seg(beta),
       sosp(sosp),

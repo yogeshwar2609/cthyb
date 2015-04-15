@@ -43,6 +43,9 @@ struct solve_parameters_t {
  /// Add double insertions as a move?
  bool move_double = false;
 
+ /// Number of annealing steps to take in warmup cycles
+ int n_annealing_steps = 0;
+
  /// Calculate the full trace or use an estimate?
  bool use_trace_estimator = false;
 

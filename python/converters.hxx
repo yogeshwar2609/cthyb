@@ -1,6 +1,6 @@
 // DO NOT EDIT
 // Generated automatically using libclang using the command :
-// wrapper_desc_generator.py ../c++/solver_core.hpp -p -mpytriqs.applications.impurity_solvers.cthyb -o cthyb --moduledoc "The cthyb solver"
+// c++2py.py ../c++/solver_core.hpp -p -mpytriqs.applications.impurity_solvers.cthyb -o cthyb --moduledoc "The cthyb solver"
 
 
 // --- C++ Python converter for solve_parameters_t
@@ -22,6 +22,7 @@ template <> struct py_converter<solve_parameters_t> {
   PyDict_SetItemString( d, "verbosity"          , convert_to_python(x.verbosity));
   PyDict_SetItemString( d, "move_shift"         , convert_to_python(x.move_shift));
   PyDict_SetItemString( d, "move_double"        , convert_to_python(x.move_double));
+  PyDict_SetItemString( d, "n_annealing_steps"  , convert_to_python(x.n_annealing_steps));
   PyDict_SetItemString( d, "use_trace_estimator", convert_to_python(x.use_trace_estimator));
   PyDict_SetItemString( d, "measure_g_tau"      , convert_to_python(x.measure_g_tau));
   PyDict_SetItemString( d, "measure_g_l"        , convert_to_python(x.measure_g_l));
@@ -52,6 +53,7 @@ template <> struct py_converter<solve_parameters_t> {
   _get_optional(dic, "verbosity"          , res.verbosity            , ((boost::mpi::communicator().rank()==0)?3:0));
   _get_optional(dic, "move_shift"         , res.move_shift           , true);
   _get_optional(dic, "move_double"        , res.move_double          , false);
+  _get_optional(dic, "n_annealing_steps"  , res.n_annealing_steps    , 0);
   _get_optional(dic, "use_trace_estimator", res.use_trace_estimator  , false);
   _get_optional(dic, "measure_g_tau"      , res.measure_g_tau        , true);
   _get_optional(dic, "measure_g_l"        , res.measure_g_l          , false);
@@ -88,7 +90,7 @@ template <> struct py_converter<solve_parameters_t> {
   std::stringstream fs, fs2; int err=0;
 
 #ifndef TRIQS_ALLOW_UNUSED_PARAMETERS
-  std::vector<std::string> ks, all_keys = {"h_loc","n_cycles","partition_method","quantum_numbers","length_cycle","n_warmup_cycles","random_seed","random_name","max_time","verbosity","move_shift","move_double","use_trace_estimator","measure_g_tau","measure_g_l","measure_pert_order","make_histograms","proposal_prob"};
+  std::vector<std::string> ks, all_keys = {"h_loc","n_cycles","partition_method","quantum_numbers","length_cycle","n_warmup_cycles","random_seed","random_name","max_time","verbosity","move_shift","move_double","n_annealing_steps","use_trace_estimator","measure_g_tau","measure_g_l","measure_pert_order","make_histograms","proposal_prob"};
   pyref keys = PyDict_Keys(dic);
   if (!convertible_from_python<std::vector<std::string>>(keys, true)) {
    fs << "\nThe dict keys are not strings";
@@ -100,8 +102,8 @@ template <> struct py_converter<solve_parameters_t> {
     fs << "\n"<< ++err << " The parameter '" << k << "' is not recognized.";
 #endif
 
-  _check_mandatory<real_operator_t              >(dic, fs, err, "h_loc"              , "real_operator_t"); 
-  _check_mandatory<int                          >(dic, fs, err, "n_cycles"           , "int"); 
+  _check_mandatory<real_operator_t              >(dic, fs, err, "h_loc"              , "real_operator_t");
+  _check_mandatory<int                          >(dic, fs, err, "n_cycles"           , "int");
   _check_optional <std::string                  >(dic, fs, err, "partition_method"   , "std::string");
   _check_optional <std::vector<real_operator_t> >(dic, fs, err, "quantum_numbers"    , "std::vector<real_operator_t>");
   _check_optional <int                          >(dic, fs, err, "length_cycle"       , "int");
@@ -112,6 +114,7 @@ template <> struct py_converter<solve_parameters_t> {
   _check_optional <int                          >(dic, fs, err, "verbosity"          , "int");
   _check_optional <bool                         >(dic, fs, err, "move_shift"         , "bool");
   _check_optional <bool                         >(dic, fs, err, "move_double"        , "bool");
+  _check_optional <int                          >(dic, fs, err, "n_annealing_steps"  , "int");
   _check_optional <bool                         >(dic, fs, err, "use_trace_estimator", "bool");
   _check_optional <bool                         >(dic, fs, err, "measure_g_tau"      , "bool");
   _check_optional <bool                         >(dic, fs, err, "measure_g_l"        , "bool");

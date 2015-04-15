@@ -157,9 +157,30 @@ void solver_core::solve(solve_parameters_t const & params) {
   // If one is interested only in the atomic problem
   if (params.n_warmup_cycles == 0 && params.n_cycles == 0) return;
 
-  qmc_data data(beta, params, sosp, linindex, _Delta_tau, n_inner);
+  // Delta_tau_current will be viewed by qmc_data
+  // Delta_tau_average is the starting guess for annealed Delta calculations -- average of tau = 0 and beta.
+  block_gf<imtime,matrix_valued,no_tail> Delta_tau_current = _Delta_tau, Delta_tau_average = _Delta_tau, Delta_tau = _Delta_tau;
+
+  for (auto & g: Delta_tau_average) g(iw_) << 0.5*(g(0.0) + g(beta));
+  if (params.n_annealing_steps != 0) Delta_tau_current = Delta_tau_average;
+
+  qmc_data data(beta, params, sosp, linindex, Delta_tau_current, n_inner);
   auto qmc = mc_tools::mc_generic<mc_sign_type>(params.n_cycles, params.length_cycle, params.n_warmup_cycles, params.random_name,
                                                 params.random_seed, params.verbosity);
+
+  // Define after_cycle_duty function for mc class
+  if (params.n_annealing_steps != 0) {
+   auto after_cycle_duty = [&]() mutable {
+    if (qmc.thermalized()) return;
+    int r = params.n_warmup_cycles/params.n_annealing_steps;
+    if (qmc.current_cycle_number() % r != 0) return;
+    // On the last of the n_annealing steps, Delta_tau_current will be true Delta_tau
+    auto frac = std::max(double(qmc.current_cycle_number())/(r*(params.n_annealing_steps-1)),1.0);
+    Delta_tau_current = (1.0-frac)*Delta_tau_average + frac*Delta_tau;
+    for (auto& d : data.dets) d.regenerate();
+   };
+   qmc.set_after_cycle_duty(after_cycle_duty);
+  }
 
   // Moves
   using move_set_type = mc_tools::move_set<mc_sign_type>;
