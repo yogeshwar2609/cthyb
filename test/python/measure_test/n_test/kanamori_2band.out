@@ -1,0 +1,126 @@
+
+[[(1,0),(0,0),(0,0),(0,0)]
+ [(0,0),(1,0),(0,0),(0,0)]
+ [(0,0),(0,0),(1,0),(0,0)]
+ [(0,0),(0,0),(0,0),(1,0)]]
+
+[[(1,0),(0,0),(0,0),(0,0)]
+ [(0,0),(1,0),(0,0),(0,0)]
+ [(0,0),(0,0),(1,0),(0,0)]
+ [(0,0),(0,0),(0,0),(1,0)]]
+
+[[(1,0),(0,0),(0,0),(0,0)]
+ [(0,0),(1,0),(0,0),(0,0)]
+ [(0,0),(0,0),(1,0),(0,0)]
+ [(0,0),(0,0),(0,0),(1,0)]]
+
+[[(1,0),(0,0),(0,0),(0,0)]
+ [(0,0),(1,0),(0,0),(0,0)]
+ [(0,0),(0,0),(1,0),(0,0)]
+ [(0,0),(0,0),(0,0),(1,0)]]
+
+[[(1,0),(0,0),(0,0),(0,0)]
+ [(0,0),(1,0),(0,0),(0,0)]
+ [(0,0),(0,0),(1,0),(0,0)]
+ [(0,0),(0,0),(0,0),(1,0)]]
+The local Hamiltonian of the problem:
+-1*C^+(down_0,0)C(down_0,0) + -1*C^+(down_1,0)C(down_1,0) + -1*C^+(up_0,0)C(up_0,0) + -1*C^+(up_1,0)C(up_1,0) + 1.4*C^+(down_0,0)C^+(down_1,0)C(down_1,0)C(down_0,0) + 0.2*C^+(down_0,0)C^+(up_0,0)C(up_1,0)C(down_1,0) + 2*C^+(down_0,0)C^+(up_0,0)C(up_0,0)C(down_0,0) + 1.6*C^+(down_0,0)C^+(up_1,0)C(up_1,0)C(down_0,0) + 0.2*C^+(down_0,0)C^+(up_1,0)C(up_0,0)C(down_1,0) + 0.2*C^+(down_1,0)C^+(up_0,0)C(up_1,0)C(down_0,0) + 1.6*C^+(down_1,0)C^+(up_0,0)C(up_0,0)C(down_1,0) + 2*C^+(down_1,0)C^+(up_1,0)C(up_1,0)C(down_1,0) + 0.2*C^+(down_1,0)C^+(up_1,0)C(up_0,0)C(down_0,0) + 1.4*C^+(up_0,0)C^+(up_1,0)C(up_1,0)C(up_0,0)
+Using autopartition algorithm to partition the local Hilbert space
+Found 14 subspaces.
+
+[[(1,0),(0,0),(0,0),(0,0)]
+ [(0,0),(1,0),(0,0),(0,0)]
+ [(0,0),(0,0),(1,0),(0,0)]
+ [(0,0),(0,0),(0,0),(1,0)]]
+
+
+[[(1,0),(0,0),(0,0),(0,0)]
+ [(0,0),(1,0),(0,0),(0,0)]
+ [(0,0),(0,0),(1,0),(0,0)]
+ [(0,0),(0,0),(0,0),(1,0)]]
+
+[[(1,0),(0,0),(0,0),(0,0)]
+ [(0,0),(1,0),(0,0),(0,0)]
+ [(0,0),(0,0),(1,0),(0,0)]
+ [(0,0),(0,0),(0,0),(1,0)]]
+1%; 2%; 3%; 4%; 5%; 6%; 7%; 8%; 9%; 10%; 11%; 12%; 13%; 14%; 15%; 16%; 17%; 18%; 19%; 20%; 21%; 22%; 23%; 24%; 25%; 26%; 27%; 28%; 29%; 30%; 31%; 32%; 33%; 34%; 35%; 36%; 37%; 38%; 39%; 40%; 41%; 42%; 43%; 44%; 45%; 46%; 47%; 48%; 49%; 50%; 51%; 52%; 53%; 54%; 55%; 56%; 57%; 58%; 59%; 60%; 61%; 62%; 63%; 64%; 65%; 66%; 67%; 68%; 69%; 70%; 71%; 72%; 73%; 74%; 75%; 76%; 77%; 78%; 79%; 80%; 81%; 82%; 83%; 84%; 85%; 86%; 87%; 88%; 89%; 90%; 91%; 92%; 93%; 94%; 95%; 96%; 97%; 98%; 99%; 100%; 
+
+density  from the sliding method (0.635349,0)
+<c cdag> from the sliding method (1.52118,0)
+[Node 0] Acceptance rate for all moves:
+Move set Insert two operators: 0.0861218
+  Move  Insert Delta_down_0: 0.0861691
+  Move  Insert Delta_down_1: 0.0862068
+  Move  Insert Delta_up_0: 0.0860318
+  Move  Insert Delta_up_1: 0.0860793
+Move set Remove two operators: 0.0860545
+  Move  Remove Delta_down_0: 0.086057
+  Move  Remove Delta_down_1: 0.0860808
+  Move  Remove Delta_up_0: 0.0860144
+  Move  Remove Delta_up_1: 0.0860657
+Move set Insert four operators: 0.0122835
+  Move  Insert Delta_down_0_down_0: 0.0154156
+  Move  Insert Delta_down_0_down_1: 0.011178
+  Move  Insert Delta_down_0_up_0: 0.0111874
+  Move  Insert Delta_down_0_up_1: 0.0112099
+  Move  Insert Delta_down_1_down_0: 0.0112891
+  Move  Insert Delta_down_1_down_1: 0.015292
+  Move  Insert Delta_down_1_up_0: 0.0112573
+  Move  Insert Delta_down_1_up_1: 0.0112366
+  Move  Insert Delta_up_0_down_0: 0.0113141
+  Move  Insert Delta_up_0_down_1: 0.011234
+  Move  Insert Delta_up_0_up_0: 0.0153581
+  Move  Insert Delta_up_0_up_1: 0.0113106
+  Move  Insert Delta_up_1_down_0: 0.011274
+  Move  Insert Delta_up_1_down_1: 0.0112223
+  Move  Insert Delta_up_1_up_0: 0.0112971
+  Move  Insert Delta_up_1_up_1: 0.0154614
+Move set Remove four operators: 0.0123188
+  Move  Remove Delta_down_0_down_0: 0.015406
+  Move  Remove Delta_down_0_down_1: 0.0112554
+  Move  Remove Delta_down_0_up_0: 0.0113717
+  Move  Remove Delta_down_0_up_1: 0.0112832
+  Move  Remove Delta_down_1_down_0: 0.0113649
+  Move  Remove Delta_down_1_down_1: 0.0153507
+  Move  Remove Delta_down_1_up_0: 0.0113082
+  Move  Remove Delta_down_1_up_1: 0.0112472
+  Move  Remove Delta_up_0_down_0: 0.0111954
+  Move  Remove Delta_up_0_down_1: 0.0113559
+  Move  Remove Delta_up_0_up_0: 0.0154038
+  Move  Remove Delta_up_0_up_1: 0.0113682
+  Move  Remove Delta_up_1_down_0: 0.0113449
+  Move  Remove Delta_up_1_down_1: 0.0111995
+  Move  Remove Delta_up_1_up_0: 0.0112393
+  Move  Remove Delta_up_1_up_1: 0.0154138
+Move  Shift one operator: 0.38739
+[Node 0] Simulation lasted: 344 seconds
+[Node 0] Number of measures: 500000
+Total number of measures: 4000000
+Average sign: 0.999999
+Average sign: 0.999999
+Average sign: 0.999999
+Average sign: 0.999999
+Average sign: 0.999999
+Average sign: 0.999999
+Average sign: 0.999999
+Average sign: 0.999999
+GF density  {'up_0': array([[ 0.30236961 -3.69496100e-17j]]), 'up_1': array([[ 0.30592242 -5.25621213e-17j]]), 'down_1': array([[ 0.30184255 -1.08853898e-16j]]), 'down_0': array([[ 0.29468366 -6.93889390e-17j]])}
+GF total density  1.20481824367
+GF density  {'up_0': array([[ 0.30236961 -3.69496100e-17j]]), 'up_1': array([[ 0.30592242 -5.25621213e-17j]]), 'down_1': array([[ 0.30184255 -1.08853898e-16j]]), 'down_0': array([[ 0.29468366 -6.93889390e-17j]])}
+GF density  {'up_0': array([[ 0.30236961 -3.69496100e-17j]]), 'up_1': array([[ 0.30592242 -5.25621213e-17j]]), 'down_1': array([[ 0.30184255 -1.08853898e-16j]]), 'down_0': array([[ 0.29468366 -6.93889390e-17j]])}
+GF total density  1.20481824367
+GF total density  1.20481824367
+GF density  {'up_0': array([[ 0.30236961 -3.69496100e-17j]]), 'up_1': array([[ 0.30592242 -5.25621213e-17j]]), 'down_1': array([[ 0.30184255 -1.08853898e-16j]]), 'down_0': array([[ 0.29468366 -6.93889390e-17j]])}
+GF total density  1.20481824367
+GF density  {'up_0': array([[ 0.30236961 -3.69496100e-17j]]), 'up_1': array([[ 0.30592242 -5.25621213e-17j]]), 'down_1': array([[ 0.30184255 -1.08853898e-16j]]), 'down_0': array([[ 0.29468366 -6.93889390e-17j]])}
+GF total density  1.20481824367
+N_up 0.593768509672
+N_dn 0.589874931456
+unity 1.0
+N 1.18364344113
+GF density  {'up_0': array([[ 0.30236961 -3.69496100e-17j]]), 'up_1': array([[ 0.30592242 -5.25621213e-17j]]), 'down_1': array([[ 0.30184255 -1.08853898e-16j]]), 'down_0': array([[ 0.29468366 -6.93889390e-17j]])}
+GF total density  1.20481824367
+GF density  {'up_0': array([[ 0.30236961 -3.69496100e-17j]]), 'up_1': array([[ 0.30592242 -5.25621213e-17j]]), 'down_1': array([[ 0.30184255 -1.08853898e-16j]]), 'down_0': array([[ 0.29468366 -6.93889390e-17j]])}
+GF total density  1.20481824367
+GF density  {'up_0': array([[ 0.30236961 -3.69496100e-17j]]), 'up_1': array([[ 0.30592242 -5.25621213e-17j]]), 'down_1': array([[ 0.30184255 -1.08853898e-16j]]), 'down_0': array([[ 0.29468366 -6.93889390e-17j]])}
+GF total density  1.20481824367

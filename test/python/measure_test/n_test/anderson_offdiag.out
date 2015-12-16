@@ -1,0 +1,78 @@
+Welcome to Anderson (1 correlated site + symmetric bath) test.
+Constructing the solver...
+Preparing the hybridization function...
+Running the simulation...
+
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+The local Hamiltonian of the problem:
+-0.1*C^+(tot,dn)C(tot,dn) + -0.1*C^+(tot,up)C(tot,up) + 2*C^+(tot,dn)C^+(tot,up)C(tot,up)C(tot,dn)
+Using autopartition algorithm to partition the local Hilbert space
+Found 4 subspaces.
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+1%; 2%; 3%; 4%; 5%; 6%; 7%; 8%; 9%; 10%; 11%; 12%; 13%; 14%; 15%; 16%; 17%; 18%; 19%; 20%; 21%; 22%; 23%; 24%; 25%; 26%; 27%; 28%; 29%; 30%; 31%; 32%; 33%; 34%; 35%; 36%; 37%; 38%; 39%; 40%; 41%; 42%; 43%; 44%; 45%; 46%; 47%; 48%; 49%; 50%; 51%; 52%; 53%; 54%; 55%; 56%; 57%; 58%; 59%; 60%; 61%; 62%; 63%; 64%; 65%; 66%; 67%; 68%; 69%; 70%; 71%; 72%; 73%; 74%; 75%; 76%; 77%; 78%; 79%; 80%; 81%; 82%; 83%; 84%; 85%; 86%; 87%; 88%; 89%; 90%; 91%; 92%; 93%; 94%; 95%; 96%; 97%; 98%; 99%; 100%; 
+
+density  from the sliding method (0.743245,0)
+<c cdag> from the sliding method (1.20306,0)
+[Node 0] Acceptance rate for all moves:
+Move set Insert two operators: 0.0781843
+  Move  Insert Delta_tot: 0.0781843
+Move set Remove two operators: 0.0781907
+  Move  Remove Delta_tot: 0.0781907
+Move  Shift one operator: 0.126221
+[Node 0] Simulation lasted: 222 seconds
+[Node 0] Number of measures: 1000000
+Total number of measures: 8000000
+Average sign: 1
+Average sign: 1
+Average sign: 1
+Average sign: 1
+Average sign: 1
+Average sign: 1
+Average sign: 1
+Average sign: 1
+density =  {'tot': array([[ 0.38395679 -8.70831185e-17j,  0.00000000 +0.00000000e+00j],
+       [ 0.00000000 -0.00000000e+00j,  0.37474247 +2.49800181e-17j]])}
+density =  {'tot': array([[ 0.38395679 -8.70831185e-17j,  0.00000000 +0.00000000e+00j],
+       [ 0.00000000 -0.00000000e+00j,  0.37474247 +2.49800181e-17j]])}
+density =  {'tot': array([[ 0.38395679 -8.70831185e-17j,  0.00000000 +0.00000000e+00j],
+       [ 0.00000000 -0.00000000e+00j,  0.37474247 +2.49800181e-17j]])}
+total density =  0.758699255908
+total density =  0.758699255908
+total density =  0.758699255908
+density =  {'tot': array([[ 0.38395679 -8.70831185e-17j,  0.00000000 +0.00000000e+00j],
+       [ 0.00000000 -0.00000000e+00j,  0.37474247 +2.49800181e-17j]])}
+total density =  0.758699255908
+density =  {'tot': array([[ 0.38395679 -8.70831185e-17j,  0.00000000 +0.00000000e+00j],
+       [ 0.00000000 -0.00000000e+00j,  0.37474247 +2.49800181e-17j]])}
+total density =  0.758699255908
+density =  {'tot': array([[ 0.38395679 -8.70831185e-17j,  0.00000000 +0.00000000e+00j],
+       [ 0.00000000 -0.00000000e+00j,  0.37474247 +2.49800181e-17j]])}
+total density =  0.758699255908
+density =  {'tot': array([[ 0.38395679 -8.70831185e-17j,  0.00000000 +0.00000000e+00j],
+       [ 0.00000000 -0.00000000e+00j,  0.37474247 +2.49800181e-17j]])}
+total density =  0.758699255908
+density =  {'tot': array([[ 0.38395679 -8.70831185e-17j,  0.00000000 +0.00000000e+00j],
+       [ 0.00000000 -0.00000000e+00j,  0.37474247 +2.49800181e-17j]])}
+total density =  0.758699255908

@@ -51,14 +51,15 @@ impurity_trace::impurity_trace(configuration& c, atom_diag const& h_diag_, solve
  use_norm_as_weight = p.use_norm_as_weight;
  measure_density_matrix = p.measure_density_matrix;
  // init density_matrix block + bool
- for (int bl = 0; bl < n_blocks; ++bl) density_matrix[bl] = bool_and_matrix{false, matrix<double>(get_block_dim(bl), get_block_dim(bl))};
+ for (int bl = 0; bl < n_blocks; ++bl)
+  density_matrix[bl] = bool_and_matrix{false, matrix<double>(get_block_dim(bl), get_block_dim(bl))};
 
  // prepare atomic_rho and atomic_norm
- if(use_norm_as_weight) {
+ if (use_norm_as_weight) {
   auto rho = atomic_density_matrix(h_diag_, config->beta());
   for (int bl = 0; bl < n_blocks; ++bl) {
    atomic_rho[bl] = bool_and_matrix{true, rho[bl] * atomic_z};
-   for(int u = 0; u < get_block_dim(bl); ++u) {
+   for (int u = 0; u < get_block_dim(bl); ++u) {
     auto xx = rho[bl](u, u);
     atomic_norm += xx * xx;
    }
@@ -84,7 +85,8 @@ impurity_trace::impurity_trace(configuration& c, atom_diag const& h_diag_, solve
 
 // ------- Computation of the block table (only) -------------
 
-// for subtree at node n, returns B' that block b at the node closest to tau=0 connects to
+// for subtree at node n, returns B', the exit block corresponding to the entry block b
+// i.e. the rightmost operator is taken for block b
 // precondition: b != -1, n != null
 // returns -1 if cancellation structural
 int impurity_trace::compute_block_table(node n, int b) {
@@ -95,7 +97,7 @@ int impurity_trace::compute_block_table(node n, int b) {
  int b1 = (n->right ? compute_block_table(n->right, b) : b);
  if (b1 < 0) return b1;
 
- int b2 = (n->delete_flag ? b1 : get_op_block_map(n, b1));
+ int b2 = (n->delete_flag ? b1 : get_op_block_map(n->op, b1));
  if (b2 < 0) return b2;
 
  return (n->left ? compute_block_table(n->left, b2) : b2);
@@ -103,6 +105,7 @@ int impurity_trace::compute_block_table(node n, int b) {
 // -------- Computation of the block table and bounds -------------
 
 // for subtree at node n, return (B', bound)
+// B' = exit block of subtree at n for entry block b
 // precondition: b !=-1, n != null
 // returns -1 for structural and/or threshold cancellation
 std::pair<int, double> impurity_trace::compute_block_table_and_bound(node n, int b, double lnorm_threshold, bool use_threshold) {
@@ -120,7 +123,7 @@ std::pair<int, double> impurity_trace::compute_block_table_and_bound(node n, int
  }
  if (use_threshold && (lnorm > lnorm_threshold)) return {-1, 0};
 
- int b2 = (n->delete_flag ? b1 : get_op_block_map(n, b1));
+ int b2 = (n->delete_flag ? b1 : get_op_block_map(n->op, b1));
  if (b2 < 0) return {b2, 0};
 
  int b3 = b2;
@@ -135,9 +138,9 @@ std::pair<int, double> impurity_trace::compute_block_table_and_bound(node n, int
 
  if (use_threshold && (lnorm > lnorm_threshold)) return {-1, 0};
 
- if (std::isinf(lnorm)){
+ if (std::isinf(lnorm)) {
   lnorm = double_max;
-  if (lnorm<0) TRIQS_RUNTIME_ERROR << "Negative lnorm in compute_block_table_and_bound!";
+  if (lnorm < 0) TRIQS_RUNTIME_ERROR << "Negative lnorm in compute_block_table_and_bound!";
  }
 
  return {b3, lnorm};
@@ -145,8 +148,9 @@ std::pair<int, double> impurity_trace::compute_block_table_and_bound(node n, int
 
 // -------- Computation of the matrix ------------------------------
 
-// returns {block that b connects to at this node, matrix for this block on node n (if not structurally zero, i.e. if B' != -1)}
-std::pair<int, arrays::matrix<double>> impurity_trace::compute_matrix(node n, int b) {
+// returns {B' = exit block of subtree at n for entry block b, matrix for this block on node n (if not structurally zero, i.e. if
+// B' != -1)}
+impurity_trace::block_and_matrix impurity_trace::compute_matrix(node n, int b) {
 
  if (b == -1) return {-1, {}};
  if (n == nullptr) return {b, {}};
@@ -157,38 +161,39 @@ std::pair<int, arrays::matrix<double>> impurity_trace::compute_matrix(node n, in
  auto _ = arrays::range();
 
  auto r = compute_matrix(n->right, b);
- int b1 = r.first; // exit block of right subtree
+ int b1 = r.b; // exit block of right subtree
  if (b1 == -1) return {-1, {}};
 
- int b2 = (n->delete_flag ? b1 : get_op_block_map(n, b1)); // relevant block on current node
+ int b2 = (n->delete_flag ? b1 : get_op_block_map(n->op, b1)); // relevant block on current node
  if (b2 == -1) return {-1, {}};
 
- matrix<double> M = (!n->delete_flag ? get_op_block_matrix(n, b1) : make_unit_matrix<double>(get_block_dim(b1)));
+ matrix<double> M = (!n->delete_flag ? get_op_block_matrix(n->op, b1) : make_unit_matrix<double>(get_block_dim(b1)));
 
  if (n->right) { // M <- M * exp * r[b]
   dtau_r = double(n->key - tree.min_key(n->right));
   auto dim = second_dim(M); // same as get_block_dim(b2);
-  for (int i = 0; i < dim; ++i) M(_, i) *= std::exp(-dtau_r * get_block_eigenval(b1, i)); // Create time-evolution matrix e^-H(t'-t)
-  if ((first_dim(r.second) == 1) && (second_dim(r.second) == 1))
-   M *= r.second(0, 0);
+  for (int i = 0; i < dim; ++i)
+   M(_, i) *= std::exp(-dtau_r * get_block_eigenval(b1, i)); // Create time-evolution matrix e^-H(t'-t)
+  if ((first_dim(r.M) == 1) && (second_dim(r.M) == 1))
+   M *= r.M(0, 0);
   else
-   M = M * r.second; // FIXME could try to optimise lapack call?
+   M = M * r.M; // FIXME could try to optimise lapack call?
  }
 
  int b3 = b2;
  if (n->left) { // M <- l[b] * exp * M
   auto l = compute_matrix(n->left, b2);
-  b3 = l.first;
+  b3 = l.b;
   if (b3 == -1) return {-1, {}};
   dtau_l = double(tree.max_key(n->left) - n->key);
   auto dim = first_dim(M); // same as get_block_dim(b1);
   for (int i = 0; i < dim; ++i) M(i, _) *= std::exp(-dtau_l * get_block_eigenval(b2, i));
-  if ((first_dim(l.second) == 1) && (second_dim(l.second) == 1))
-   M *= l.second(0, 0);
+  if ((first_dim(l.M) == 1) && (second_dim(l.M) == 1))
+   M *= l.M(0, 0);
   else
-   M = l.second * M;
+   M = l.M * M;
  }
- 
+
  if (updating) {
   n->cache.matrices[b] = M;
   n->cache.matrix_norm_valid[b] = true;
@@ -208,9 +213,7 @@ std::pair<int, arrays::matrix<double>> impurity_trace::compute_matrix(node n, in
 
 // ------- Update the cache -----------------------
 
-void impurity_trace::update_cache() {
- update_cache_impl(tree.get_root());
-}
+void impurity_trace::update_cache() { update_cache_impl(tree.get_root()); }
 
 // --------------------------------
 
@@ -227,9 +230,9 @@ void impurity_trace::update_cache_impl(node n) {
   n->cache.block_table[b] = r.first;
   n->cache.matrix_lnorms[b] = r.second;
   n->cache.matrix_norm_valid[b] = false;
- } 
- // This is not necessary here as all modified nodes are "cleared" 
- //  by tree::clear_modified in the try/cancel/confirm set 
+ }
+ // This is not necessary here as all modified nodes are "cleared"
+ //  by tree::clear_modified in the try/cancel/confirm set
  // n->modified = false;
 }
 
@@ -253,10 +256,11 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
 
  // simplifies later code
  if (tree_size == 0) {
-  if(use_norm_as_weight) {
+  if (use_norm_as_weight) {
    density_matrix = atomic_rho;
    return {atomic_norm, atomic_z / atomic_norm};
-  } else return {atomic_z, 1};
+  } else
+   return {atomic_z, 1};
  }
 
  auto root = tree.get_root();
@@ -265,14 +269,14 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
  double dtau_0 = double(tree.max_key());
  double dtau = dtau_beta + dtau_0;
 
-//FIXME
-// #ifdef EXT_DEBUG
-//  std::cout << " Trace computed ---------------" << std::endl;
-//  tree.print(std::cout);
-//  std::cout << "dtau = " << dtau << std::endl;
-//  std::cout << *config << std::endl;
-//  tree.graphviz(std::ofstream("tree_start_compute_trace"));
-// #endif
+ // FIXME
+ // #ifdef EXT_DEBUG
+ //  std::cout << " Trace computed ---------------" << std::endl;
+ //  tree.print(std::cout);
+ //  std::cout << "dtau = " << dtau << std::endl;
+ //  std::cout << *config << std::endl;
+ //  tree.graphviz(std::ofstream("tree_start_compute_trace"));
+ // #endif
 
  update_dtau(root); // recompute the dtau for modified nodes
 
@@ -283,8 +287,8 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
   // This guarantees that the density matrix is blockwise diagonal (otherwise the code will have thrown an error).
   if (measure_density_matrix) {
    if ((block_lnorm_pair.first != b) && (block_lnorm_pair.first != -1))
-    TRIQS_RUNTIME_ERROR << "The product of atomic operators has a matrix element in the off-diagonal block ("
-                        << b << "," << block_lnorm_pair.first << ")\n" << *config;
+    TRIQS_RUNTIME_ERROR << "The product of atomic operators has a matrix element in the off-diagonal block (" << b << ","
+                        << block_lnorm_pair.first << ")\n" << *config;
   }
 
   if (block_lnorm_pair.first == b) { // final structural check B ---> returns to B.
@@ -308,7 +312,7 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
  // Prepare to loop over all blocks (in sorted order).
  // According to estimator, truncate as epsilon.
  trace_t full_trace = 0, first_term = 0;
- double norm_trace_sq = 0, trace_abs =0;
+ double norm_trace_sq = 0, trace_abs = 0;
 
  // Put density_matrix to "not recomputed"
  for (int bl = 0; bl < n_blocks; ++bl) density_matrix[bl].is_valid = false;
@@ -318,17 +322,20 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
  int n_bl = to_sort_lnorm_b.size();                // number of blocks
  auto bound_cumul = std::vector<double>(n_bl + 1); // cumulative sum of the bounds
  // The contribution to the trace from block B is bounded: |Tr_B| <= dim(B) * sum_{B} e^{Emin(B)*dtau}
- // Here we calculate the cumulative bound from each contributing (structurally non-zero) block to 
+ // Here we calculate the cumulative bound from each contributing (structurally non-zero) block to
  // determine at which block we have exceeded the bound and hence can stop.
  // Can tighten bound on trace by using sqrt(dim(B)) in the case of Frobenius norm only.
  bound_cumul[n_bl] = 0;
  if (!use_norm_as_weight) {
   for (int bl = n_bl - 1; bl >= 0; --bl)
-   bound_cumul[bl] = bound_cumul[bl + 1] + std::exp(-to_sort_lnorm_b[bl].first) * std::sqrt(get_block_dim(to_sort_lnorm_b[bl].second));
+   bound_cumul[bl] =
+       bound_cumul[bl + 1] + std::exp(-to_sort_lnorm_b[bl].first) * std::sqrt(get_block_dim(to_sort_lnorm_b[bl].second));
  } else {
   for (int bl = n_bl - 1; bl >= 0; --bl) bound_cumul[bl] = bound_cumul[bl + 1] + std::exp(-to_sort_lnorm_b[bl].first);
  }
 
+ contributing_blocks.clear();
+ contributing_blocks.reserve(n_blocks);
  // Loop over blocks
  int bl;
  for (bl = 0; bl < n_bl; ++bl) { // sum over all blocks
@@ -337,6 +344,9 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
   if ((bl > 0) && (bound_cumul[bl] <= std::abs(full_trace) * epsilon)) break;
 
   int block_index = to_sort_lnorm_b[bl].second; // index in original (unsorted) order
+
+  // Store the contributing blocks in the class
+  contributing_blocks.push_back(block_index);
 
   // additionnal Yee quick return criterion
   if (p_yee >= 0.0) {
@@ -347,22 +357,22 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
 
   // computes the matrices, recursively along the modified path in the tree
   auto b_mat = compute_matrix(root, block_index); // b_mat = {block that b connects to, matrix for this block}
-  if (b_mat.first == -1) TRIQS_RUNTIME_ERROR << " Internal error : B = -1 after compute matrix : " << block_index;
+  if (b_mat.b == -1) TRIQS_RUNTIME_ERROR << " Internal error : B = -1 after compute matrix : " << block_index;
 
 #ifdef CHECK_AGAINST_LINEAR_COMPUTATION
   auto b_mat2 = check_one_block_matrix_linear(root, block_index, false);
-  if (max_element(abs(b_mat.second - b_mat2)) > 1.e-10) TRIQS_RUNTIME_ERROR << " Matrix failed against linear computation";
+  if (max_element(abs(b_mat.M - b_mat2)) > 1.e-10) TRIQS_RUNTIME_ERROR << " Matrix failed against linear computation";
 #endif
 
   // trace(mat * exp(- H * (beta - tmax)) * exp (- H * tmin)) to handle the piece outside of the first-last operators.
   trace_t trace_partial = 0;
   auto dim = get_block_dim(block_index);
   for (int u = 0; u < dim; ++u) {
-   auto x = b_mat.second(u, u) * std::exp(-dtau * get_block_eigenval(block_index, u));
+   auto x = b_mat.M(u, u) * std::exp(-dtau * get_block_eigenval(block_index, u));
    trace_partial += x;
    trace_abs += std::abs(x);
   }
- 
+
   if (use_norm_as_weight) { // else we are not allowed to compute this matrix, may make no sense
    // recompute the density matrix
    density_matrix[block_index].is_valid = true;
@@ -370,8 +380,8 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
    auto& mat = density_matrix[block_index].mat;
    for (int u = 0; u < dim; ++u) {
     for (int v = 0; v < dim; ++v) {
-     mat(u, v) = b_mat.second(u, v) *
-                 std::exp(-dtau_beta * get_block_eigenval(block_index, u) - dtau_0 * get_block_eigenval(block_index, v));
+     mat(u, v) =
+         b_mat.M(u, v) * std::exp(-dtau_beta * get_block_eigenval(block_index, u) - dtau_0 * get_block_eigenval(block_index, v));
      double xx = std::abs(mat(u, v));
      norm_trace_sq_partial += xx * xx;
     }
@@ -379,13 +389,15 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
    norm_trace_sq += norm_trace_sq_partial;
    // internal check
    if (std::abs(trace_partial) - 1.0000001 * std::sqrt(norm_trace_sq_partial) * get_block_dim(block_index) > 1.e-15)
-    TRIQS_RUNTIME_ERROR << "|trace| > dim * norm" << trace_partial << " " << std::sqrt(norm_trace_sq_partial) << "  " << trace_abs;
+    TRIQS_RUNTIME_ERROR << "|trace| > dim * norm" << trace_partial << " " << std::sqrt(norm_trace_sq_partial) << "  "
+                        << trace_abs;
    if (std::abs(trace_partial - trace(mat)) > 1.e-15) TRIQS_RUNTIME_ERROR << "Internal error : trace and density mismatch";
   }
 
 #ifdef CHECK_MATRIX_BOUNDED_BY_BOUND
   if (std::abs(trace_partial) > 1.000001 * dim * std::exp(-to_sort_lnorm_b[bl].first))
-   TRIQS_RUNTIME_ERROR << "Matrix not bounded by the bound ! test is " << std::abs(trace_partial) <<" < " << dim * std::exp(-to_sort_lnorm_b[bl].first);
+   TRIQS_RUNTIME_ERROR << "Matrix not bounded by the bound ! test is " << std::abs(trace_partial) << " < "
+                       << dim * std::exp(-to_sort_lnorm_b[bl].first);
 #endif
 
   full_trace += trace_partial; // sum for all blocks
@@ -408,8 +420,8 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
 
  // Analysis
  if (histo) {
-  histo->trace_over_norm << std::abs(full_trace)/ norm_trace;
-  histo->trace_abs_over_norm << trace_abs/ norm_trace;
+  histo->trace_over_norm << std::abs(full_trace) / norm_trace;
+  histo->trace_abs_over_norm << trace_abs / norm_trace;
   histo->trace_over_trace_abs << full_trace / trace_abs;
   std::sort(trace_contrib_block.begin(), trace_contrib_block.end(), std::c14::greater<>());
   histo->dominant_block_trace << begin(trace_contrib_block)->second;
@@ -423,11 +435,9 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
  // else determine reweighting
  auto rw = full_trace / norm_trace;
  if (!std::isfinite(rw)) rw = 1;
- //FIXME if (!std::isfinite(rw)) TRIQS_RUNTIME_ERROR << "Atomic correlators : reweight not finite" << full_trace << " "<< norm_trace;
+ // FIXME if (!std::isfinite(rw)) TRIQS_RUNTIME_ERROR << "Atomic correlators : reweight not finite" << full_trace << " "<<
+ // norm_trace;
  return {norm_trace, rw};
- }
-
-// code for check/debug
-#include "./impurity_trace.checks.cpp"
+}
 
 } // namespace

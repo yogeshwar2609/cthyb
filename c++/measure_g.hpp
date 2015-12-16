@@ -36,7 +36,6 @@ struct measure_g {
  double beta;
  mc_sign_type z;
  int64_t num;
- mc_sign_type average_sign;
 
  measure_g(int a_level, gf_view<imtime,matrix_real_valued> g_tau, qmc_data const& data)
     : data(data), g_tau(g_tau), a_level(a_level), beta(data.config.beta()) {

@@ -18,6 +18,12 @@
  * TRIQS. If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
+#include "impurity_trace.hpp"
+namespace cthyb {
+
+//***********************************************************************
+// Checks related to cache integrity
+//***********************************************************************
 
 //-------------------- Cache integrity check --------------------------------
 
@@ -43,7 +49,7 @@ int impurity_trace::check_one_block_table_linear(node n, int b, bool print) {
  foreach_reverse(tree, n, [&](node y) {
   if (B == -1) return;
   auto BB = B;
-  B = (y->delete_flag ? B : this->get_op_block_map(y, B));
+  B = (y->delete_flag ? B : this->get_op_block_map(y->op, B));
   if (print)
    std::cout << "linear computation : " << y->key << " " << y->op.dagger << " " << y->op.linear_index << " | " << BB << " -> "
              << B << std::endl;
@@ -60,7 +66,7 @@ matrix<double> impurity_trace::check_one_block_matrix_linear(node top, int b, bo
  auto _ = arrays::range();
 
  foreach_reverse(tree, top, [&](node n) {
-    // multiply by the exponential unless it is the first call, i.e. first operator n==p
+  // multiply by the exponential unless it is the first call, i.e. first operator n==p
   if (n != p) {
    auto dtau = double(n->key - p->key);
    //  M <- exp * M
@@ -70,9 +76,9 @@ matrix<double> impurity_trace::check_one_block_matrix_linear(node top, int b, bo
   }
   // multiply by operator matrix unless it is delete_flag
   if (!n->delete_flag) {
-   int bp = this->get_op_block_map(n, b);
+   int bp = this->get_op_block_map(n->op, b);
    if (bp == -1) TRIQS_RUNTIME_ERROR << " Nasty error ";
-   M = get_op_block_matrix(n, b) * M;
+   M = get_op_block_matrix(n->op, b) * M;
    b = bp;
   }
   p = n;
@@ -99,3 +105,146 @@ void impurity_trace::check_cache_integrity_one_node(node n, bool print) {
  }
 }
 
+//***********************************************************************
+// Checks related to partial matrix products M_L, M_M and M_R
+//***********************************************************************
+
+//-------- Check partial linear matrices M_L, M_M and M_R against root matrix ------------
+
+void impurity_trace::check_ML_MM_MR(bool print) {
+
+ if (print) std::cout << " ... checking ML, MM and MR against root cache matrix " << std::endl;
+
+ // First update all cached matrices in tree *without* the Yee trick
+ auto w_rw = compute();
+
+ // Check M_R(beta) = M_L(0) = M_M(beta,0) = root->cache_matrix
+ for (auto bl : contributing_blocks) { // Only loop over matrices that contribute to the trace
+  auto root = tree.get_root();
+  auto true_mat = get_cache_matrix(root, bl);
+  auto b_mat_r = compute_M_R(root, _beta, bl);
+  auto b_mat_l = compute_M_L(root, _zero, bl);
+  auto b_mat_m = compute_M_M(root, _beta, _zero, bl);
+  if ((b_mat_l.b != bl) or (b_mat_m.b != bl) or (b_mat_r.b != bl)) TRIQS_RUNTIME_ERROR << "check_ML_MM_MR: block mismatch!";
+  if (max_element(abs(b_mat_l.M - true_mat.M)) > diff_threshold)
+   std::cout << "check_ML_MM_MR: ML does not match true matrix: " << b_mat_l.M << " L " << true_mat.M << " true " << std::endl;
+  if (max_element(abs(b_mat_m.M - true_mat.M)) > diff_threshold)
+   std::cout << "check_ML_MM_MR: MM does not match true matrix: " << b_mat_m.M << " M " << true_mat.M << " true " << std::endl;
+  if (max_element(abs(b_mat_r.M - true_mat.M)) > diff_threshold)
+   std::cout << "check_ML_MM_MR: MR does not match true matrix: " << b_mat_r.M << " R " << true_mat.M << " true " << std::endl;
+ }
+}
+
+//-------- Compute trace of configuration using M_L and M_R, and one operator ------------------------------
+
+// Preconditions: chosen operator with index_node is always first of a pair, 
+// i.e. there is at least one operator to the right of op(index_node)
+void impurity_trace::check_trace_from_ML_MR(std::vector<node> const& flat_config, int index_node, bool print) {
+
+ if (print) std::cout << " ... checking trace from ML and MR against trace from root cache matrix " << std::endl;
+
+ // Update the cache fully, i.e. without the Yee trick
+ auto w_rw = compute();
+ auto true_trace = w_rw.first * w_rw.second; // tr = norm * tr/norm = w * rw
+
+ auto is_first_config = (index_node == 0);
+ auto n = flat_config[index_node];
+ auto tau = n->key;
+ auto root = tree.get_root();
+ auto conf_size = flat_config.size();
+ // size of tau piece outside first-last operators: beta - tmax + tmin ! the tree is in REVERSE order
+ auto dtau_beta = _beta - tree.min_key();
+ auto dtau_zero = tree.max_key();
+ double dtau_beta_zero = (is_first_config ? double(dtau_zero) : double(dtau_beta + dtau_zero));
+ trace_t reconstructed_trace = 0;
+
+ // If operator is the rightmost in config (closest to tau=0), tau1 = 0
+ // operator cannot actually be rightmost as we are always shifting first operator in a pair
+ // If operator is the leftmost in config (closest to tau=beta), tau2 = beta
+ // then do not evolve to beta at the end!
+ auto tau1 = ((index_node + 1 == conf_size) ? _zero : flat_config[index_node + 1]->key);
+ auto tau2 = (is_first_config ? _beta : flat_config[index_node - 1]->key);
+
+ for (auto bl : contributing_blocks) {
+
+  // Calculate matrix, working from right to left (tau = 0->beta)
+  // mat =     M_L * evo2 *  op  * evo1 * M_R
+  // blocks:  bl<-b2       b2<-b1        b1<-bl
+  // Done in two pieces : (M_L * (evo2 * op_r * evo1 * M_R)))
+  auto b_mat = evolve(tau, tau2, get_op(n) * evolve(tau1, tau, compute_M_R(root, tau, bl)));
+  b_mat = compute_M_L(root, tau, b_mat.b) * b_mat;
+  if (b_mat.b != bl) TRIQS_RUNTIME_ERROR << "check_trace_from_ML_MR: matrix takes b_i " << bl << " to " << b_mat.b << " !";
+
+  // trace(mat * exp(- H * (beta - tmax)) * exp (- H * tmin)) to handle the piece outside of the first-last operators.
+  auto dim = get_block_dim(bl);
+  for (int u = 0; u < dim; ++u) reconstructed_trace += b_mat.M(u, u) * std::exp(-dtau_beta_zero * get_block_eigenval(bl, u));
+ }
+
+ if (reconstructed_trace - true_trace > diff_threshold)
+  TRIQS_RUNTIME_ERROR << "check_trace_from_ML_MR: traces do not agree. true trace = " << true_trace
+                      << ", while recomputed trace = " << reconstructed_trace;
+}
+
+//-------- Compute trace of configuration using M_L, M_M and M_R, and two operators -------------------------
+
+// Preconditions: chosen operator with index_node_l/r is always first of a pair, 
+// i.e. there is at least one operator to the right of op(index_node_r) but op(index_node_l) could be the leftmost
+void impurity_trace::check_trace_from_ML_MM_MR(std::vector<node> const& flat_config, int index_node_l, int index_node_r,
+                                               bool print) {
+
+ if (print) std::cout << " ... checking trace from ML and MR against trace from root cache matrix " << std::endl;
+
+ // Update the cache fully, i.e. without the Yee trick
+ auto w_rw = compute();
+ auto true_trace = w_rw.first * w_rw.second; // tr = norm * tr/norm = w * rw
+
+ auto is_first_config = (index_node_l == 0);
+ auto node_r = flat_config[index_node_r];
+ auto tau_r = node_r->key;
+ auto node_l = flat_config[index_node_l];
+ auto tau_l = node_l->key;
+ auto root = tree.get_root();
+ auto conf_size = flat_config.size();
+ // size of tau piece outside first-last operators: beta - tmax + tmin ! the tree is in REVERSE order
+ double dtau_beta = config->beta() - tree.min_key();
+ double dtau_zero = double(tree.max_key());
+ auto dtau_beta_zero = (is_first_config ? dtau_zero : dtau_beta + dtau_zero);
+ trace_t reconstructed_trace = 0;
+
+ // If operator is the rightmost in config (closest to tau=0), tau1 = 0
+ // operator cannot actually be rightmost as we are always shifting first operator in a pair
+ // If operator is the leftmost in config (closest to tau=beta), tau4 = beta
+ // then do not evolve to beta at the end!
+ auto tau1 = ((index_node_r + 1 == conf_size) ? _zero : flat_config[index_node_r + 1]->key);
+ auto tau2 = flat_config[index_node_r - 1]->key;
+ auto tau3 = flat_config[index_node_l + 1]->key;
+ auto tau4 = (is_first_config ? _beta : flat_config[index_node_l - 1]->key);
+
+ for (auto bl : contributing_blocks) {
+
+  auto xx = compute_block_table_and_bound(root, bl, std::numeric_limits<double>::max());
+  if (xx.first == -1) TRIQS_RUNTIME_ERROR << "null block";
+
+  // Calculate matrix, working from right to left (tau = 0->beta)
+  // mat =     M_L * evo4 * op_l * evo3 * M_M * evo2 * op_r * evo1 * M_R
+  // blocks:  bl<-b4       b4<-b3        b3<-b2       b2<-b1        b1<-bl
+  // times:      t4          t_l        t3   t2         t_r         t1
+  // Done in three pieces : (M_L * (evo4 * op_l * evo3 * M_M * (evo2 * op_r * evo1 * M_R)))
+  auto b_mat = evolve(tau_r, tau2, get_op(node_r) * evolve(tau1, tau_r, compute_M_R(root, tau_r, bl)));
+  // If M_M is empty, only evolve using evo2
+  auto b_mat_M = compute_M_M(root, tau_l, tau_r, b_mat.b);
+  if (!b_mat_M.M.is_empty()) b_mat = evolve(tau3, tau_l, b_mat_M * b_mat);
+  b_mat = evolve(tau_l, tau4, get_op(node_l) * b_mat);
+  b_mat = compute_M_L(root, tau_l, b_mat.b) * b_mat;
+  if (b_mat.b != bl) TRIQS_RUNTIME_ERROR << "check_trace_from_ML_MM_MR: matrix takes b_i " << bl << " to " << b_mat.b << " !";
+
+  // trace(mat * exp(- H * (beta - tmax)) * exp (- H * tmin)) to handle the piece outside of the first-last operators.
+  auto dim = get_block_dim(bl);
+  for (int u = 0; u < dim; ++u) reconstructed_trace += b_mat.M(u, u) * std::exp(-dtau_beta_zero * get_block_eigenval(bl, u));
+ }
+
+ if (reconstructed_trace - true_trace > diff_threshold)
+  TRIQS_RUNTIME_ERROR << "check_trace_from_ML_MM_MR: traces do not agree. true trace = " << true_trace
+                      << ", while recomputed trace = " << reconstructed_trace;
+}
+}

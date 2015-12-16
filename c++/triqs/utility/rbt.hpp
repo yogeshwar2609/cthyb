@@ -170,7 +170,7 @@ private : node root; // root of the BST
  node & get_root() { return root; }
 
  /// What is the comparator?
- Compare const & get_comparator() const { return compare;}
+ Compare const & get_compare() const { return compare;}
 
  /// Print in text the whole tree
  void print(std::ostream & out) const {

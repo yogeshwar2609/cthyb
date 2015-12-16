@@ -17,10 +17,12 @@ module.add_preamble("""
 #include <triqs/python_tools/converters/pair.hpp>
 #include <triqs/python_tools/converters/map.hpp>
 #include <triqs/python_tools/converters/vector.hpp>
+#include <triqs/python_tools/converters/variant.hpp>
 #include <triqs/python_tools/converters/tuple.hpp>
 #include <triqs/python_tools/converters/operators_real_complex.hpp>
 #include <triqs/python_tools/converters/fundamental_operator_set.hpp>
 using namespace triqs::gfs;
+using triqs::operators::many_body_operator;
 using namespace cthyb;
 #include "./converters.hxx"
 """)
@@ -35,28 +37,30 @@ c.add_constructor("""(double beta, std::map<std::string,indices_type> gf_struct,
                   doc = """ """)
 
 c.add_method("""void solve (**cthyb::solve_parameters_t)""",
-             doc = """  Parameter Name         Type            Default                       Documentation
+             doc = """  Parameter Name               Type                            Default                                Documentation
 
-  h_int                  Operator        --                            Interacting part of the atomic Hamiltonian
-  n_cycles               int             --                            Number of QMC cycles
-  partition_method       str             "autopartition"               Partition method
-  quantum_numbers        list(Operator)  []                            Quantum numbers
-  length_cycle           int             50                            Length of a single QMC cycle
-  n_warmup_cycles        int             5000                          Number of cycles for thermalization
-  random_seed            int             34788 + 928374 * MPI.rank     Seed for random number generator
-  random_name            str             ""                            Name of random number generator
-  max_time               int             -1                            Maximum runtime in seconds, use -1 to set infinite
-  verbosity              int             3 on MPI rank 0, 0 otherwise. Verbosity level
-  move_shift             bool            true                          Add shifting a move as a move?
-  move_double            bool            false                         Add double insertions as a move?
-  use_trace_estimator    bool            false                         Calculate the full trace or use an estimate?
-  measure_g_tau          bool            true                          Measure G(tau)?
-  measure_g_l            bool            false                         Measure G_l (Legendre)?
-  measure_pert_order     bool            false                         Measure perturbation order?
-  measure_density_matrix bool            false                         Measure the contribution of each atomic state to the trace?
-  use_norm_as_weight     bool            false                         Use the norm of the density matrix in the weight if true, otherwise use Trace
-  performance_analysis   bool            false                         Analyse performance of trace computation with histograms (developers only)?
-  proposal_prob          dict(str:float) {}                            Operator insertion/removal probabilities for different blocks                  """)
+  h_int                        Operator                        --                                     Interacting part of the atomic Hamiltonian
+  n_cycles                     int                             --                                     Number of QMC cycles
+  partition_method             str                             "autopartition"                        Partition method
+  quantum_numbers              list(Operator)                  []                                     Quantum numbers
+  length_cycle                 int                             50                                     Length of a single QMC cycle
+  n_warmup_cycles              int                             5000                                   Number of cycles for thermalization
+  random_seed                  int                             34788 + 928374 * MPI.rank              Seed for random number generator
+  random_name                  str                             ""                                     Name of random number generator
+  max_time                     int                             -1 = infinite                          Maximum runtime in seconds, use -1 to set infinite
+  verbosity                    int                             3 on MPI rank 0, 0 otherwise.          Verbosity level
+  move_shift                   bool                            true                                   Add shifting a move as a move?
+  move_double                  bool                            false                                  Add double insertions as a move?
+  use_trace_estimator          bool                            false                                  Calculate the full trace or use an estimate?
+  measure_g_tau                bool                            true                                   Measure G(tau)?
+  measure_g_l                  bool                            false                                  Measure G_l (Legendre)?
+  measure_pert_order           bool                            false                                  Measure perturbation order?
+  measure_density_matrix       bool                            false                                  Measure the contribution of each atomic state to the trace?
+  use_norm_as_weight           bool                            false                                  Use the norm of the density matrix in the weight if true, otherwise use Trace
+  measure_four_body_correlator std::pair<many_body_op_t, bool> std::make_pair(many_body_op_t{},false) Measure four body correlator of given quadratic operator, noting whether c^+ and c anticommute.
+  measure_two_body_correlator  std::pair<many_body_op_t, bool> std::make_pair(many_body_op_t{},false) Measure two body correlator of given quadratic operator, noting whether c^+ and c anticommute.
+  performance_analysis         bool                            false                                  Analyse performance of trace computation with histograms (developers only)?
+  proposal_prob                dict(str:float)                 {}                                     Operator insertion/removal probabilities for different blocks                                    """)
 
 c.add_property(name = "h_loc",
                getter = cfunction("many_body_op_t h_loc ()"),
@@ -90,6 +94,10 @@ c.add_property(name = "density_matrix",
                getter = cfunction("std::vector<matrix<double>> density_matrix ()"),
                doc = """Density matrix """)
 
+c.add_property(name = "correlator",
+               getter = cfunction("gf_view<imtime,scalar_valued> correlator ()"),
+               doc = """Four body correlator """)
+
 c.add_property(name = "h_loc_diagonalization",
                getter = cfunction("cthyb::atom_diag h_loc_diagonalization ()"),
                doc = """Diagonalization of h_loc """)
@@ -103,7 +111,6 @@ c.add_property(name = "solve_status",
                doc = """Status of the solve on exit """)
 
 module.add_class(c)
-
 
 # The class atom_diag
 c = class_(
@@ -214,4 +221,3 @@ module.add_function ("std::vector<std::vector<double>> quantum_number_eigenvalue
 module.add_function ("std::vector<std::vector<double>> quantum_number_eigenvalues2 (many_body_op_t op, cthyb::atom_diag atom)", doc = "The operator op is supposed to be a quantum number (if not, exception) @return the eigenvalue by block")
 
 module.generate_code()
-

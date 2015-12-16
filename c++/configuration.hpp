@@ -21,9 +21,9 @@
 #pragma once
 #include "atom_diag.hpp"
 #include "atom_diag_functions.hpp"
+#include "./time_pt.hpp"
 #include "./util.hpp"
 #include <triqs/hilbert_space/hilbert_space.hpp>
-#include <triqs/utility/time_pt.hpp>
 #include <map>
 
 namespace cthyb {

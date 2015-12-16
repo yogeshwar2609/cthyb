@@ -1,0 +1,60 @@
+Welcome to Anderson (1 correlated site + symmetric bath) test.
+Constructing the solver...
+Preparing the hybridization function...
+Running the simulation...
+
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+The local Hamiltonian of the problem:
+-0.1*C^+(dn,0)C(dn,0) + -0.1*C^+(up,0)C(up,0) + 2*C^+(dn,0)C^+(up,0)C(up,0)C(dn,0)
+Using autopartition algorithm to partition the local Hilbert space
+Found 4 subspaces.
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+
+
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+
+[[(1,0),(0,0)]
+ [(0,0),(1,0)]]
+1%; 2%; 3%; 4%; 5%; 6%; 7%; 8%; 9%; 10%; 11%; 12%; 13%; 14%; 15%; 16%; 17%; 18%; 19%; 20%; 21%; 22%; 23%; 24%; 25%; 26%; 27%; 28%; 29%; 30%; 31%; 32%; 33%; 34%; 35%; 36%; 37%; 38%; 39%; 40%; 41%; 42%; 43%; 44%; 45%; 46%; 47%; 48%; 49%; 50%; 51%; 52%; 53%; 54%; 55%; 56%; 57%; 58%; 59%; 60%; 61%; 62%; 63%; 64%; 65%; 66%; 67%; 68%; 69%; 70%; 71%; 72%; 73%; 74%; 75%; 76%; 77%; 78%; 79%; 80%; 81%; 82%; 83%; 84%; 85%; 86%; 87%; 88%; 89%; 90%; 91%; 92%; 93%; 94%; 95%; 96%; 97%; 98%; 99%; 100%; 
+
+density  from the sliding method (0.742318,0)
+<c cdag> from the sliding method (1.20637,0)
+[Node 0] Acceptance rate for all moves:
+Move set Insert two operators: 0.13449
+  Move  Insert Delta_dn: 0.134456
+  Move  Insert Delta_up: 0.134523
+Move set Remove two operators: 0.134486
+  Move  Remove Delta_dn: 0.134459
+  Move  Remove Delta_up: 0.134512
+Move  Shift one operator: 0.197445
+[Node 0] Simulation lasted: 256 seconds
+[Node 0] Number of measures: 1000000
+Total number of measures: 8000000
+Average sign: 1
+Average sign: 1
+Average sign: 1
+Average sign: 1
+Average sign: 1
+Average sign: 1
+Average sign: 1
+Average sign: 1
+unity 1.0
+N 0.759137984746
+Nup 0.379761617233
+Ndn 0.379376367514

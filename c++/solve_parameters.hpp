@@ -72,6 +72,12 @@ struct solve_parameters_t {
  /// Use the norm of the density matrix in the weight if true, otherwise use Trace
  bool use_norm_as_weight = false;
 
+ /// Measure four body correlator of given quadratic operator, noting whether c^+ and c anticommute.
+ std::pair<many_body_op_t, bool> measure_four_body_correlator = std::make_pair(many_body_op_t{}, false);
+
+ /// Measure two body correlator of given quadratic operator, noting whether c^+ and c anticommute.
+ std::pair<many_body_op_t, bool> measure_two_body_correlator = std::make_pair(many_body_op_t{}, false);
+
  /// Analyse performance of trace computation with histograms (developers only)?
  bool performance_analysis = false;
 
