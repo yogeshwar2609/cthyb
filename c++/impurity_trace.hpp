@@ -163,7 +163,9 @@ class impurity_trace {
  std::pair<op_desc, const atom_diag*> get_op(node n) const { return {n->op, h_diag}; }
 
  // Recursive function for tree traversal
+ public: //FIXME
  int compute_block_table(node n, int b);
+ private:
  std::pair<int, double> compute_block_table_and_bound(node n, int b, double bound_threshold, bool use_threshold = true);
  block_and_matrix compute_matrix(node n, int b);
 
@@ -368,6 +370,9 @@ class impurity_trace {
 
   // FIXME leave blocks as a input param or use contributing blocks by default?
   for (auto bl : blocks) {
+
+   //FIXME
+   compute_matrix(root, bl);
 
    // Matrix with c_dag,c operators stuck together
    // mat =     M_L * evo34 * op_l * M_M * evo12 * op_r * M_R

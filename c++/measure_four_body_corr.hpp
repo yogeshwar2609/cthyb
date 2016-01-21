@@ -21,6 +21,7 @@
 #pragma once
 #include <triqs/gfs.hpp>
 #include "./qmc_data.hpp"
+#include "triqs/statistics/histograms.hpp"
 
 namespace cthyb {
 
@@ -38,6 +39,9 @@ struct measure_four_body_corr {
  arrays::array<dcomplex, 4> coefficients;          // Coefficients of op*op, where op is a quadratic operator
  arrays::array<dcomplex, 2> coefficients_one_pair; // Max abs coefficient of op
  bool anticommute;                                 // Do the cdag and c operators anticommute?
+
+//FIXME
+ statistics::histogram_segment_bin binned_taus = {0, data.config.beta(), 100, "histo_binned_taus.dat"};
 
  measure_four_body_corr(qmc_data const& data, gf_view<imtime, scalar_valued> correlator, fundamental_operator_set const & fops, many_body_operator const & A, bool anticommute);
  void accumulate(mc_sign_type s);

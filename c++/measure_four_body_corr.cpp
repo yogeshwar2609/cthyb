@@ -32,6 +32,7 @@ measure_four_body_corr::measure_four_body_corr(qmc_data const& data, gf_view<imt
  correlator() = 0.0;
  auto fops_size = fops.size();
 
+ //FIXME generalize to take two different operators too
  // Extract the non-zero monomials for a quadratic operator, op = \sum_ab coef_ab c^+_a c_b
  // and store in a table linking to operator indices: coef = coefficients[cdag_index,c_index,cdag_index,c_index]
  // Note: it is important that the order is c^+ c, and not c c^+ !
@@ -89,12 +90,17 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
  });
 
  // Update the cache without the Yee trick
- auto w_rw = data.imp_trace.compute();
- auto true_tr = w_rw.first * w_rw.second; // tr = norm * tr/norm = w * rw
+// auto w_rw = data.imp_trace.compute();
 
  //FIXME
- // Which blocks contribute to the trace?
- auto blocks = data.imp_trace.contributing_blocks;
+// // Which blocks contribute to the trace?
+// auto blocks = data.imp_trace.contributing_blocks;
+std::vector<int> blocks;
+blocks.clear();
+blocks.reserve(data.imp_trace.n_blocks);
+for (auto bl : range(data.imp_trace.n_blocks)) {
+ if (data.imp_trace.compute_block_table(data.imp_trace.tree.get_root(),bl) == bl) blocks.push_back(bl);
+}
 
 #ifdef DEBUG
  // Check partial linear matrices match root cache matrix
@@ -109,9 +115,9 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
   auto n2 = flat_config[i + 1];
   auto tau12 = n2->key; // Always shift first (left) op to the second (right) op in pair
   if (anticommute) {
-   if (n1->op.dagger == n2->op.dagger) continue;
+   if (n1->op.dagger == n2->op.dagger) continue; // restrict to either cdag * c or c * cdag
   } else {
-   if ((!n1->op.dagger) and (n2->op.dagger)) continue;
+   if ((!n1->op.dagger) or (n2->op.dagger)) continue; // restrict to cdag * c only
   }
   auto ind1 = op_index_in_det[i];
   auto ind2 = op_index_in_det[i + 1];
@@ -124,15 +130,16 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
   }
 
   // Does this pair contribute?
-  if (std::abs(coefficients_one_pair(n1->op.linear_index, n2->op.linear_index)) < coef_threshold) continue;
+  //TEMP if (std::abs(coefficients_one_pair(n1->op.linear_index, n2->op.linear_index)) < coef_threshold) continue;
 
+  auto tau34 = tau12; //FIXME
   // Find the second pair of c, c^+
   for (int j = i + 2; j < flat_config.size() - 1; ++j) {
 
    // n3, n4 are the two other operators
    auto n3 = flat_config[j];
    auto n4 = flat_config[j + 1];
-   auto tau34 = n4->key;
+   tau34 = n4->key;
    if (anticommute) {
     if (n3->op.dagger == n4->op.dagger) continue;
    } else {
@@ -150,7 +157,7 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
 
    // Coefficient for the accumulation
    auto coef = coefficients(n1->op.linear_index, n2->op.linear_index, n3->op.linear_index, n4->op.linear_index);
-   if (std::abs(coef) < coef_threshold) continue; // Do these 2 pairs contribute?
+   //TEMP if (std::abs(coef) < coef_threshold) continue; // Do these 2 pairs contribute?
 
    // Now measure!
 
@@ -182,14 +189,32 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
    auto b3 = n3->op.block_index;
    auto b4 = n4->op.block_index;
 
-   if ((b1 == b2) && (b3 == b4)) MM1 = data.dets[b1].inverse_matrix(ind2, ind1) * data.dets[b3].inverse_matrix(ind4, ind3);
-   if ((b1 == b4) && (b3 == b2)) MM2 = data.dets[b1].inverse_matrix(ind4, ind1) * data.dets[b3].inverse_matrix(ind2, ind3);
+   //TEMPif ((b1 == b2) && (b3 == b4)) MM1 = data.dets[b1].inverse_matrix(ind2, ind1) * data.dets[b3].inverse_matrix(ind4, ind3);
+   //TEMP if ((b1 == b4) && (b3 == b2)) MM2 = data.dets[b1].inverse_matrix(ind4, ind1) * data.dets[b3].inverse_matrix(ind2, ind3);
 
    // --- Accumulate into correlator ---
 
-   if ((anticommute) and (swapped12 xor swapped34)) s = -s;
-   correlator[closest_mesh_pt(double(tau12 - tau34))] += coef * s * (MM1 - MM2) * tr_over_int;
+   //if ((anticommute) and (swapped12 xor swapped34)) s = -s;
+   //auto accum = coef * s * (MM1 - MM2) * tr_over_int;
+   //auto tau = double(tau12 - tau34);
+   //auto tau2 = data.config.beta() - tau;
+   //binned_taus << tau;
+   //binned_taus << tau2;
+   //correlator[closest_mesh_pt(tau)] += accum;
+   //correlator[closest_mesh_pt(tau2)] += accum;
+   //correlator[closest_mesh_pt(double(tau12 - tau34))] += coef * s * (MM1 - MM2) * tr_over_int;
 
+   //FIXME Measure Gtau as a second check
+   if (b1 == b2) correlator[closest_mesh_pt(0.0)] += (n2->key >= n1->key ? s : -s) * data.dets[b1].inverse_matrix(ind2, ind1) * tr_over_int;
+   if (b3 == b4) correlator[closest_mesh_pt(0.0)] += (n4->key >= n3->key ? s : -s) * data.dets[b3].inverse_matrix(ind4, ind3) * tr_over_int;
+   if (b1 == b4) correlator[closest_mesh_pt(double(n4->key - n2->key))] += (n4->key >= n2->key ? s : -s) * data.dets[b1].inverse_matrix(ind4, ind1) * tr_over_int;
+   if (b3 == b2) correlator[closest_mesh_pt(double(n2->key - n4->key))] += (n2->key >= n4->key ? s : -s) * data.dets[b3].inverse_matrix(ind2, ind3) * tr_over_int;
+
+//   if (b1 == b2) correlator[closest_mesh_pt(data.config.beta())] += (n1->key >= n2->key ? s : -s) * data.dets[b1].inverse_matrix(ind2, ind1) * tr_over_int;
+//   if (b3 == b4) correlator[closest_mesh_pt(data.config.beta())] += (n3->key >= n4->key ? s : -s) * data.dets[b3].inverse_matrix(ind4, ind3) * tr_over_int;
+//   if (b1 == b4) correlator[closest_mesh_pt(double(make_time_pt_beta(data.config.beta()) + n2->key - n4->key))] += ((make_time_pt_beta(data.config.beta()) + n2->key) >= n4->key ? s : -s) * data.dets[b1].inverse_matrix(ind4, ind1) * tr_over_int;
+//   if (b3 == b2) correlator[closest_mesh_pt(double(make_time_pt_beta(data.config.beta()) + n4->key - n2->key))] += ((make_time_pt_beta(data.config.beta()) + n4->key) >= n2->key ? s : -s) * data.dets[b3].inverse_matrix(ind2, ind3) * tr_over_int;
+   
   } // Second pair
  }  // First pair
 }
@@ -201,6 +226,9 @@ void measure_four_body_corr::collect_results(triqs::mpi::communicator const& c) 
  //FIXME correlator[0] *= 2;
  //FIXME correlator[correlator.mesh().size() - 1] *= 2;
  correlator = mpi_all_reduce(correlator, c);
- correlator = correlator / z; // * data.config.beta() * correlator.mesh().delta());
+ //correlator = correlator / (z * data.config.beta() * correlator.mesh().delta());
+ correlator = correlator / (-z * data.config.beta() * correlator.mesh().delta());
+ correlator[0] = correlator[0] * 2;
+ correlator[correlator.mesh().size() - 1] = correlator[correlator.mesh().size() - 1] * 2;
 }
 }
