@@ -130,16 +130,15 @@ for (auto bl : range(data.imp_trace.n_blocks)) {
   }
 
   // Does this pair contribute?
-  //TEMP if (std::abs(coefficients_one_pair(n1->op.linear_index, n2->op.linear_index)) < coef_threshold) continue;
+  if (std::abs(coefficients_one_pair(n1->op.linear_index, n2->op.linear_index)) < coef_threshold) continue;
 
-  auto tau34 = tau12; //FIXME
   // Find the second pair of c, c^+
   for (int j = i + 2; j < flat_config.size() - 1; ++j) {
 
    // n3, n4 are the two other operators
    auto n3 = flat_config[j];
    auto n4 = flat_config[j + 1];
-   tau34 = n4->key;
+   auto tau34 = n4->key;
    if (anticommute) {
     if (n3->op.dagger == n4->op.dagger) continue;
    } else {
@@ -157,7 +156,7 @@ for (auto bl : range(data.imp_trace.n_blocks)) {
 
    // Coefficient for the accumulation
    auto coef = coefficients(n1->op.linear_index, n2->op.linear_index, n3->op.linear_index, n4->op.linear_index);
-   //TEMP if (std::abs(coef) < coef_threshold) continue; // Do these 2 pairs contribute?
+   if (std::abs(coef) < coef_threshold) continue; // Do these 2 pairs contribute?
 
    // Now measure!
 
@@ -189,32 +188,21 @@ for (auto bl : range(data.imp_trace.n_blocks)) {
    auto b3 = n3->op.block_index;
    auto b4 = n4->op.block_index;
 
-   //TEMPif ((b1 == b2) && (b3 == b4)) MM1 = data.dets[b1].inverse_matrix(ind2, ind1) * data.dets[b3].inverse_matrix(ind4, ind3);
-   //TEMP if ((b1 == b4) && (b3 == b2)) MM2 = data.dets[b1].inverse_matrix(ind4, ind1) * data.dets[b3].inverse_matrix(ind2, ind3);
+   if ((b1 == b2) && (b3 == b4)) MM1 = data.dets[b1].inverse_matrix(ind2, ind1) * data.dets[b3].inverse_matrix(ind4, ind3);
+   if ((b1 == b4) && (b3 == b2)) MM2 = data.dets[b1].inverse_matrix(ind4, ind1) * data.dets[b3].inverse_matrix(ind2, ind3);
 
    // --- Accumulate into correlator ---
 
    //if ((anticommute) and (swapped12 xor swapped34)) s = -s;
-   //auto accum = coef * s * (MM1 - MM2) * tr_over_int;
-   //auto tau = double(tau12 - tau34);
-   //auto tau2 = data.config.beta() - tau;
-   //binned_taus << tau;
-   //binned_taus << tau2;
-   //correlator[closest_mesh_pt(tau)] += accum;
-   //correlator[closest_mesh_pt(tau2)] += accum;
    //correlator[closest_mesh_pt(double(tau12 - tau34))] += coef * s * (MM1 - MM2) * tr_over_int;
+   auto accum = coef * s * (MM1 - MM2) * tr_over_int;
+   auto tau = double(tau12 - tau34);
+   auto tau2 = data.config.beta() - tau;
+   binned_taus << tau; //DEBUG
+   binned_taus << tau2; //DEBUG
+   correlator[closest_mesh_pt(tau)] += accum;
+   correlator[closest_mesh_pt(tau2)] += accum;
 
-   //FIXME Measure Gtau as a second check
-   if (b1 == b2) correlator[closest_mesh_pt(0.0)] += (n2->key >= n1->key ? s : -s) * data.dets[b1].inverse_matrix(ind2, ind1) * tr_over_int;
-   if (b3 == b4) correlator[closest_mesh_pt(0.0)] += (n4->key >= n3->key ? s : -s) * data.dets[b3].inverse_matrix(ind4, ind3) * tr_over_int;
-   if (b1 == b4) correlator[closest_mesh_pt(double(n4->key - n2->key))] += (n4->key >= n2->key ? s : -s) * data.dets[b1].inverse_matrix(ind4, ind1) * tr_over_int;
-   if (b3 == b2) correlator[closest_mesh_pt(double(n2->key - n4->key))] += (n2->key >= n4->key ? s : -s) * data.dets[b3].inverse_matrix(ind2, ind3) * tr_over_int;
-
-//   if (b1 == b2) correlator[closest_mesh_pt(data.config.beta())] += (n1->key >= n2->key ? s : -s) * data.dets[b1].inverse_matrix(ind2, ind1) * tr_over_int;
-//   if (b3 == b4) correlator[closest_mesh_pt(data.config.beta())] += (n3->key >= n4->key ? s : -s) * data.dets[b3].inverse_matrix(ind4, ind3) * tr_over_int;
-//   if (b1 == b4) correlator[closest_mesh_pt(double(make_time_pt_beta(data.config.beta()) + n2->key - n4->key))] += ((make_time_pt_beta(data.config.beta()) + n2->key) >= n4->key ? s : -s) * data.dets[b1].inverse_matrix(ind4, ind1) * tr_over_int;
-//   if (b3 == b2) correlator[closest_mesh_pt(double(make_time_pt_beta(data.config.beta()) + n4->key - n2->key))] += ((make_time_pt_beta(data.config.beta()) + n4->key) >= n2->key ? s : -s) * data.dets[b3].inverse_matrix(ind2, ind3) * tr_over_int;
-   
   } // Second pair
  }  // First pair
 }
@@ -226,9 +214,6 @@ void measure_four_body_corr::collect_results(triqs::mpi::communicator const& c) 
  //FIXME correlator[0] *= 2;
  //FIXME correlator[correlator.mesh().size() - 1] *= 2;
  correlator = mpi_all_reduce(correlator, c);
- //correlator = correlator / (z * data.config.beta() * correlator.mesh().delta());
- correlator = correlator / (-z * data.config.beta() * correlator.mesh().delta());
- correlator[0] = correlator[0] * 2;
- correlator[correlator.mesh().size() - 1] = correlator[correlator.mesh().size() - 1] * 2;
+ correlator = correlator / (z * data.config.beta() * correlator.mesh().delta());
 }
 }
