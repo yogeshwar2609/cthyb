@@ -102,6 +102,15 @@ class impurity_trace {
   long b;                   // Block index
   arrays::matrix<double> M; // Matrix for block b
 
+  // Add two block_and_matrix objects, treating an empty matrix as a zero matrix
+  friend block_and_matrix operator+(block_and_matrix const& b_mat1, block_and_matrix const& b_mat2) {
+   if (b_mat1.b != b_mat2.b) TRIQS_RUNTIME_ERROR << "block_and_matrix: cannot add two objects that yield different blocks!";
+   if (b_mat1.b == -1) return {-1, {}};
+   if (b_mat1.M.is_empty()) return b_mat2;
+   if (b_mat2.M.is_empty()) return b_mat1;
+   return {b_mat1.b, b_mat1.M + b_mat2.M};
+  }
+
   // Multiply two block_and_matrix objects, treating an empty matrix as the identity matrix
   friend block_and_matrix operator*(block_and_matrix const& b_mat1, block_and_matrix const& b_mat2) {
    if ((b_mat1.b == -1) or (b_mat2.b == -1)) return {-1, {}};
@@ -346,62 +355,103 @@ class impurity_trace {
 
   // Preconditions: chosen operator with index_node is always first of a pair,
   // i.e. there is at least one operator to the right of op(index_node)
-  auto is_first_config = (index_node_l == 0);
+  auto is_i_first_op = (index_node_l == 0);
   auto node_r = flat_config[index_node_r];
   auto tau_r = node_r->key;
   auto node_l = flat_config[index_node_l];
   auto tau_l = node_l->key;
   auto root = tree.get_root();
   auto conf_size = flat_config.size();
-  // size of tau piece outside first-last operators: beta - tmax + tmin ! the tree is in REVERSE order
-  double dtau_beta = config->beta() - tree.min_key();
-  double dtau_zero = double(tree.max_key());
-  auto dtau_beta_zero = (is_first_config ? dtau_zero : dtau_beta + dtau_zero);
   trace_t sliding_trace = 0, int_trace = 0;
 
-  // If operator is the rightmost in config (closest to tau=0), tau1 = 0
-  // operator cannot actually be rightmost as we are always shifting first operator in a pair
+  // Determine if cycling around with j operator or not
+  auto is_r_last_op = (index_node_r == conf_size - 1);
+  auto r_plus_one = is_r_last_op ? 0 : index_node_r + 1 ; // Cycle around?
+
   // If operator is the leftmost in config (closest to tau=beta), tau4 = beta
   // then do not evolve to beta at the end!
-  auto tau1 = ((index_node_r + 1 == conf_size) ? _zero : flat_config[index_node_r + 1]->key);
+  // Do not check if operator is rightmost as we are always shifting first operator in a pair
+  auto tau1 = flat_config[r_plus_one]->key;
   auto tau2 = flat_config[index_node_r - 1]->key;
   auto tau3 = flat_config[index_node_l + 1]->key;
-  auto tau4 = (is_first_config ? _beta : flat_config[index_node_l - 1]->key);
+  auto tau4 = (is_i_first_op ? _beta : flat_config[index_node_l - 1]->key);
 
-  // FIXME leave blocks as a input param or use contributing blocks by default?
-  for (auto bl : blocks) {
+  if (is_r_last_op) {
 
-   //FIXME
-   compute_matrix(root, bl);
+   for (auto bl : blocks) {
 
-   // Matrix with c_dag,c operators stuck together
-   // mat =     M_L * evo34 * op_l * M_M * evo12 * op_r * M_R
-   // blocks:  bl<-b4       b4<-b3  b3<-b2        b2<-b1 b1<-bl
-   // times:      t4            t_l=t3  t2           t_r=t1
-   // Done in three pieces : (M_L * (evo34 * op_l * M_M * (evo12 * op_r * M_R)))
-   auto b_mat_R = compute_M_R(root, tau_r, bl); // b_mat_R.b = b1
-   auto trace_mat = evolve(tau1, tau2, get_op(node_r) * b_mat_R);
-   auto b_mat_M = compute_M_M(root, tau_l, tau_r, trace_mat.b); // b_mat_M.b = b3
-   trace_mat = evolve(tau3, tau4, get_op(node_l) * (b_mat_M * trace_mat));
-   auto b_mat_L = compute_M_L(root, tau_l, trace_mat.b);
-   trace_mat = b_mat_L * trace_mat;
+    // FIXME
+    //compute_matrix(root, bl);
 
-   // Matrix for trace normalisation with integrals
-   // mat =     M_L * int [evo4 * op_l * evo3] * M_M * int [evo2 * op_r * evo1] * M_R
-   // blocks:  bl<-b4            b4<-b3        b3<-b2             b2<-b1         b1<-bl
-   auto int_r = int_evo_op_evo(b_mat_R.b, tau1, tau2, node_r->op); // \int evo2 * op_r * evo1
-   auto int_l = int_evo_op_evo(b_mat_M.b, tau3, tau4, node_l->op); // \int evo4 * op_r * evo3
-   auto int_mat = b_mat_L * (int_l * (b_mat_M * (int_r * b_mat_R)));
+    // Matrix with c_dag,c operators stuck together
+    // mat =      evo * op_r * M_L * evo * op_l * M_M * evo
+    // times: beta   t_r=t1  t1    t4   t_l=t3  t3    t2   0
+    // blocks:   b1  b1    bl=b4   b3    b3     b2    b1   b1
+    auto b_mat_M = compute_M_M(root, tau_l, tau_r, get_op_block_map(node_r->op, bl));
+    auto trace_mat = evolve(tau3, tau4, get_op(node_l) * b_mat_M);
+    auto b_mat_L = compute_M_L(root, tau_l, trace_mat.b);
+    assert(b_mat_L.b == bl); //DEBUG
+    trace_mat = evolve(tau1, _beta, get_op(node_r) * (b_mat_L * trace_mat));
+    trace_mat = evolve(_zero, tau2, trace_mat);
 
-   if ((trace_mat.b != bl) or (int_mat.b != bl))
-    TRIQS_RUNTIME_ERROR << " compute_sliding_trace_integral: matrix takes b_i " << bl << " to " << trace_mat.b << " !";
+    // Matrix for trace normalisation with integrals
+    // mat =   (int [evo2 * op_r * evo_zero] + int [evo_beta * op_r * evo1]) * M_L * int [evo4 * op_l * evo3] * M_M
+    // times:  t2                         zero/beta                          t1    t4                         t3   t2
+    // blocks: b1                                                          bl=b4   b3                         b2   b1
+    auto int_l = int_evo_op_evo(b_mat_M.b, tau3, tau4, node_l->op);   // \int evo4 * op_l * evo3
+    auto int_r = int_evo_op_evo(bl, tau1, tau2, node_r->op);          // \int evo2 * op_r * evo1
+    auto int_mat = int_r * (b_mat_L * (int_l * b_mat_M));
 
-   // trace(mat * exp(- H * (beta - tmax)) * exp (- H * tmin)) to handle the piece outside of the first-last operators.
-   auto dim = get_block_dim(bl);
-   for (int u = 0; u < dim; ++u) {
-    auto evo = std::exp(-dtau_beta_zero * get_block_eigenval(bl, u));
-    int_trace += int_mat.M(u, u) * evo;
-    sliding_trace += trace_mat.M(u, u) * evo;
+    assert(trace_mat.b == get_op_block_map(node_r->op, bl));
+    assert(int_mat.b == get_op_block_map(node_r->op, bl));
+
+    // Compute trace
+    int_trace = trace(int_mat.M);
+    sliding_trace = trace(trace_mat.M);
+   }
+
+  } else {
+
+   // FIXME leave blocks as a input param or use contributing blocks by default?
+   for (auto bl : blocks) {
+
+    // FIXME
+    //compute_matrix(root, bl);
+
+    // size of tau piece outside first-last operators: beta - tmax + tmin ! the tree is in REVERSE order
+    double dtau_beta = config->beta() - tree.min_key();
+    double dtau_zero = double(tree.max_key());
+    auto dtau_beta_zero = (is_i_first_op ? dtau_zero : dtau_beta + dtau_zero);
+
+    // Matrix with c_dag,c operators stuck together
+    // mat =     M_L * evo34 * op_l * M_M * evo12 * op_r * M_R
+    // blocks:  bl<-b4       b4<-b3  b3<-b2        b2<-b1 b1<-bl
+    // times:      t4            t_l=t3  t2           t_r=t1
+    // Done in three pieces : (M_L * (evo34 * op_l * M_M * (evo12 * op_r * M_R)))
+    auto b_mat_R = compute_M_R(root, tau_r, bl); // b_mat_R.b = b1
+    auto trace_mat = evolve(tau1, tau2, get_op(node_r) * b_mat_R);
+    auto b_mat_M = compute_M_M(root, tau_l, tau_r, trace_mat.b); // b_mat_M.b = b3
+    trace_mat = evolve(tau3, tau4, get_op(node_l) * (b_mat_M * trace_mat));
+    auto b_mat_L = compute_M_L(root, tau_l, trace_mat.b);
+    trace_mat = b_mat_L * trace_mat;
+
+    // Matrix for trace normalisation with integrals
+    // mat =     M_L * int [evo4 * op_l * evo3] * M_M * int [evo2 * op_r * evo1] * M_R
+    // blocks:  bl<-b4            b4<-b3        b3<-b2             b2<-b1         b1<-bl
+    auto int_r = int_evo_op_evo(b_mat_R.b, tau1, tau2, node_r->op); // \int evo2 * op_r * evo1
+    auto int_l = int_evo_op_evo(b_mat_M.b, tau3, tau4, node_l->op); // \int evo4 * op_l * evo3
+    auto int_mat = b_mat_L * (int_l * (b_mat_M * (int_r * b_mat_R)));
+
+    if ((trace_mat.b != bl) or (int_mat.b != bl))
+     TRIQS_RUNTIME_ERROR << " compute_sliding_trace_integral: matrix takes b_i " << bl << " to " << trace_mat.b << " !";
+
+    // trace(mat * exp(- H * (beta - tmax)) * exp (- H * tmin)) to handle the piece outside of the first-last operators.
+    auto dim = get_block_dim(bl);
+    for (int u = 0; u < dim; ++u) {
+     auto evo = std::exp(-dtau_beta_zero * get_block_eigenval(bl, u));
+     int_trace += int_mat.M(u, u) * evo;
+     sliding_trace += trace_mat.M(u, u) * evo;
+    }
    }
   }
   return {sliding_trace, int_trace};
@@ -415,7 +465,7 @@ class impurity_trace {
  std::pair<trace_t, trace_t> compute_sliding_trace_integral_one_pair(std::vector<node> const& flat_config, int index_node,
                                                                      std::vector<int> const& blocks) {
 
-  auto is_first_config = (index_node == 0);
+  auto is_first_op = (index_node == 0);
   auto n = flat_config[index_node];
   auto tau = n->key;
   auto root = tree.get_root();
@@ -423,13 +473,12 @@ class impurity_trace {
   // size of tau piece outside first-last operators: beta - tmax + tmin ! the tree is in REVERSE order
   auto dtau_beta = _beta - tree.min_key();
   auto dtau_zero = tree.max_key();
-  double dtau_beta_zero = (is_first_config ? double(dtau_zero) : double(dtau_beta + dtau_zero));
+  double dtau_beta_zero = (is_first_op ? double(dtau_zero) : double(dtau_beta + dtau_zero));
   trace_t sliding_trace = 0, int_trace = 0;
 
-  // If operator is the rightmost in config (closest to tau=0), tau1 = 0
-  // operator cannot actually be rightmost as we are always shifting first operator in a pair
-  // If operator is the leftmost in config (closest to tau=beta), tau2 = beta
+  // If operator is the leftmost in config (closest to tau=beta), tau4 = beta
   // then do not evolve to beta at the end!
+  // Do not check if operator is rightmost as we are always shifting first operator in a pair
   auto tau1 = ((index_node + 1 == conf_size) ? _zero : flat_config[index_node + 1]->key);
   auto tau2 = ((index_node == 0) ? _beta : flat_config[index_node - 1]->key);
 

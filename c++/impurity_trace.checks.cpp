@@ -147,7 +147,7 @@ void impurity_trace::check_trace_from_ML_MR(std::vector<node> const& flat_config
  auto w_rw = compute();
  auto true_trace = w_rw.first * w_rw.second; // tr = norm * tr/norm = w * rw
 
- auto is_first_config = (index_node == 0);
+ auto is_first_op = (index_node == 0);
  auto n = flat_config[index_node];
  auto tau = n->key;
  auto root = tree.get_root();
@@ -155,15 +155,14 @@ void impurity_trace::check_trace_from_ML_MR(std::vector<node> const& flat_config
  // size of tau piece outside first-last operators: beta - tmax + tmin ! the tree is in REVERSE order
  auto dtau_beta = _beta - tree.min_key();
  auto dtau_zero = tree.max_key();
- double dtau_beta_zero = (is_first_config ? double(dtau_zero) : double(dtau_beta + dtau_zero));
+ double dtau_beta_zero = (is_first_op ? double(dtau_zero) : double(dtau_beta + dtau_zero));
  trace_t reconstructed_trace = 0;
 
- // If operator is the rightmost in config (closest to tau=0), tau1 = 0
- // operator cannot actually be rightmost as we are always shifting first operator in a pair
- // If operator is the leftmost in config (closest to tau=beta), tau2 = beta
+ // If operator is the leftmost in config (closest to tau=beta), tau4 = beta
  // then do not evolve to beta at the end!
+ // Do not check if operator is rightmost as we are always shifting first operator in a pair
  auto tau1 = ((index_node + 1 == conf_size) ? _zero : flat_config[index_node + 1]->key);
- auto tau2 = (is_first_config ? _beta : flat_config[index_node - 1]->key);
+ auto tau2 = (is_first_op ? _beta : flat_config[index_node - 1]->key);
 
  for (auto bl : contributing_blocks) {
 
@@ -198,7 +197,7 @@ void impurity_trace::check_trace_from_ML_MM_MR(std::vector<node> const& flat_con
  auto w_rw = compute();
  auto true_trace = w_rw.first * w_rw.second; // tr = norm * tr/norm = w * rw
 
- auto is_first_config = (index_node_l == 0);
+ auto is_i_first_op = (index_node_l == 0);
  auto node_r = flat_config[index_node_r];
  auto tau_r = node_r->key;
  auto node_l = flat_config[index_node_l];
@@ -208,17 +207,16 @@ void impurity_trace::check_trace_from_ML_MM_MR(std::vector<node> const& flat_con
  // size of tau piece outside first-last operators: beta - tmax + tmin ! the tree is in REVERSE order
  double dtau_beta = config->beta() - tree.min_key();
  double dtau_zero = double(tree.max_key());
- auto dtau_beta_zero = (is_first_config ? dtau_zero : dtau_beta + dtau_zero);
+ auto dtau_beta_zero = (is_i_first_op ? dtau_zero : dtau_beta + dtau_zero);
  trace_t reconstructed_trace = 0;
 
- // If operator is the rightmost in config (closest to tau=0), tau1 = 0
- // operator cannot actually be rightmost as we are always shifting first operator in a pair
  // If operator is the leftmost in config (closest to tau=beta), tau4 = beta
  // then do not evolve to beta at the end!
+ // Do not check if operator is rightmost as we are always shifting first operator in a pair
  auto tau1 = ((index_node_r + 1 == conf_size) ? _zero : flat_config[index_node_r + 1]->key);
  auto tau2 = flat_config[index_node_r - 1]->key;
  auto tau3 = flat_config[index_node_l + 1]->key;
- auto tau4 = (is_first_config ? _beta : flat_config[index_node_l - 1]->key);
+ auto tau4 = (is_i_first_op ? _beta : flat_config[index_node_l - 1]->key);
 
  for (auto bl : contributing_blocks) {
 

@@ -90,25 +90,28 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
  });
 
  // Update the cache without the Yee trick
-// auto w_rw = data.imp_trace.compute();
+ auto w_rw = data.imp_trace.compute();
 
  //FIXME
 // // Which blocks contribute to the trace?
-// auto blocks = data.imp_trace.contributing_blocks;
-std::vector<int> blocks;
-blocks.clear();
-blocks.reserve(data.imp_trace.n_blocks);
-for (auto bl : range(data.imp_trace.n_blocks)) {
- if (data.imp_trace.compute_block_table(data.imp_trace.tree.get_root(),bl) == bl) blocks.push_back(bl);
-}
+ auto blocks = data.imp_trace.contributing_blocks;
+//std::vector<int> blocks;
+//blocks.clear();
+//blocks.reserve(data.imp_trace.n_blocks);
+//for (auto bl : range(data.imp_trace.n_blocks)) {
+// if (data.imp_trace.compute_block_table(data.imp_trace.tree.get_root(),bl) == bl) blocks.push_back(bl);
+//}
 
 #ifdef DEBUG
  // Check partial linear matrices match root cache matrix
  data.imp_trace.check_ML_MM_MR(PRINT_DEBUG);
 #endif
 
- // Loop on the first pair of c, c^+
- for (int i = 0; i < flat_config.size() - 3; ++i) {
+ auto noncyclic = true;//DEBUG
+
+ // Loop on the first pair of c^+, c 
+ // i+1 can go up to second to last config
+ for (int i = 0; i < flat_config.size() - 2; ++i) {
 
   // n1, n2 are the two first operators
   auto n1 = flat_config[i];
@@ -132,12 +135,17 @@ for (auto bl : range(data.imp_trace.n_blocks)) {
   // Does this pair contribute?
   if (std::abs(coefficients_one_pair(n1->op.linear_index, n2->op.linear_index)) < coef_threshold) continue;
 
-  // Find the second pair of c, c^+
-  for (int j = i + 2; j < flat_config.size() - 1; ++j) {
+  // Find the second pair of c^+, c
+  // j can go all the way to the rightmost operator and j+1 then loops to leftmost operator
+  for (int j = i + 2; j < flat_config.size(); ++j) {
 
+   auto is_j_last_op = (j == flat_config.size() - 1);
+   if ((i == 1) and (is_j_last_op)) continue; // Otherwise have a clash of c_i = c_j+1!
+   if ((noncyclic) and (is_j_last_op)) continue; //FIXME// Otherwise have a clash of c_i = c_j+1!
+   auto j_plus_one = is_j_last_op ? 0 : j + 1 ; // Cycle around?
    // n3, n4 are the two other operators
    auto n3 = flat_config[j];
-   auto n4 = flat_config[j + 1];
+   auto n4 = flat_config[j_plus_one];
    auto tau34 = n4->key;
    if (anticommute) {
     if (n3->op.dagger == n4->op.dagger) continue;
@@ -145,7 +153,7 @@ for (auto bl : range(data.imp_trace.n_blocks)) {
     if ((!n3->op.dagger) and (n4->op.dagger)) continue;
    }
    auto ind3 = op_index_in_det[j];
-   auto ind4 = op_index_in_det[j + 1];
+   auto ind4 = op_index_in_det[j_plus_one];
 
    // Ensure that n3 is dagger, n4 not
    auto swapped34 = (n4->op.dagger);
@@ -164,7 +172,7 @@ for (auto bl : range(data.imp_trace.n_blocks)) {
 
 #ifdef DEBUG
    //DEBUG Check that the trace is correct
-   data.imp_trace.check_trace_from_ML_MM_MR(flat_config, i, j, PRINT_DEBUG);
+   data.imp_trace.check_trace_from_ML_MM_MR(flat_config, i, j, PRINT_DEBUG); //FIXME -- generalise for cyclic trace
 #endif
 
    // Move the left operator of the pair to the right, could be either c or cdag, and
@@ -197,11 +205,11 @@ for (auto bl : range(data.imp_trace.n_blocks)) {
    //correlator[closest_mesh_pt(double(tau12 - tau34))] += coef * s * (MM1 - MM2) * tr_over_int;
    auto accum = coef * s * (MM1 - MM2) * tr_over_int;
    auto tau = double(tau12 - tau34);
-   auto tau2 = data.config.beta() - tau;
+   auto tau_reverse = data.config.beta() - tau;
    binned_taus << tau; //DEBUG
-   binned_taus << tau2; //DEBUG
+   binned_taus << tau_reverse; //DEBUG
    correlator[closest_mesh_pt(tau)] += accum;
-   correlator[closest_mesh_pt(tau2)] += accum;
+   correlator[closest_mesh_pt(tau_reverse)] += accum;
 
   } // Second pair
  }  // First pair
