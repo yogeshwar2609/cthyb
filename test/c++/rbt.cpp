@@ -17,7 +17,7 @@ int main() {
  triqs::utility::rb_tree<int,int_> tree;
 
  auto plot = [](triqs::utility::rb_tree<int,int_> & tree) {
- tree.graphviz(std::cout);
+ tree.graphviz(std::cout); // plot with 'dot tree.txt -Tpdf -o tree.pdf'
  tree.clear_modified();
  };
 

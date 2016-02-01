@@ -98,6 +98,7 @@ class impurity_trace {
   void reset(op_desc op_new) { op = op_new; }
  };
 
+ public: //FIXME
  struct block_and_matrix {
   long b;                   // Block index
   arrays::matrix<double> M; // Matrix for block b
@@ -141,7 +142,6 @@ class impurity_trace {
  // ---------------- Cache machinery ----------------
  void update_cache();
 
- private:
  // The dimension of block b
  int get_block_dim(int b) const { return h_diag->get_block_dim(b); }
 
@@ -197,7 +197,6 @@ class impurity_trace {
  void check_trace_from_ML_MR(std::vector<node> const& flat_config, int index_node, bool print = false);
  void check_trace_from_ML_MM_MR(std::vector<node> const& flat_config, int index_node_l, int index_node_r, bool print = false);
 
- private:
  /*************************************************************************
   *  Calculate linear matrix products from tree caches from tau_L to tau_R
   *  Compute quantities for subtree entry block b_i, and return subtree exit block b_f and matrix.
@@ -223,7 +222,7 @@ class impurity_trace {
  // Compute e^-H(tau2-tau1) * M
  // Does not handle case where M is empty
  block_and_matrix evolve(time_pt tau1, time_pt tau2, block_and_matrix b_mat) {
-  assert(double(tau1) < double(tau2));
+  //assert(double(tau1) < double(tau2)); // DEBUG REMOVE THIS, can evolve cyclically
   assert(!b_mat.M.is_empty());
   assert(b_mat.b != -1);
   auto& M = b_mat.M;
@@ -238,36 +237,9 @@ class impurity_trace {
   return {b_mat.b, std::move(M)};
  }
 
- // Compute [\int_tau1^\tau2 dtau e^-H_{b_f}(tau2 - tau) * op_{b_i->b_f}(tau) * e^-H_{b_i}(tau - tau1)]
- block_and_matrix int_evo_op_evo(int b_i, time_pt tau1, time_pt tau2, op_desc const& op) {
-  if (b_i == -1) return {-1, {}};
-  auto b_f = get_op_block_map(op, b_i);
-  if (b_f == -1) return {-1, {}};
-  auto M = get_op_block_matrix(op, b_i);
-  double dtau = double(tau2 - tau1);
-  auto dim1 = get_block_dim(b_i);
-  auto dim2 = get_block_dim(b_f);
-  for (int i = 0; i < dim2; ++i) {
-   auto lamb2 = get_block_eigenval(b_f, i);
-   for (int j = 0; j < dim1; ++j) {
-    auto lamb1 = get_block_eigenval(b_i, j);
-    auto rhs = ((std::abs(lamb1 - lamb2) > 1.e-10) ? (std::exp(-dtau * lamb1) - std::exp(-dtau * lamb2)) / (lamb2 - lamb1)
-                                                   : std::exp(-dtau * lamb1) * dtau);
-    M(i, j) *= rhs;
-   }
-  }
-  return {b_f, std::move(M)};
- }
-
  // min/max of left/right. Precondition: n->left/n->right is not null
  time_pt tau_maxL(node n) const { return tree.max_key(n->left); }
  time_pt tau_minR(node n) const { return tree.min_key(n->right); }
-
- // FIXME why don't these work?!
- // constexpr auto compare = tree.get_compare(); //error: non-static data member declared auto
- // auto compare = std::greater<time_pt>; //error: non-static data member declared auto
- // bool compare = [](time_pt& tau1, time_pt& tau2) { return std::greater<time_pt>(tau1, tau2); };
- // bool compare = [](time_pt tau1, time_pt tau2) { return (tau1 > tau2); }; // error: expression cannot be used as a function
 
  // For three functions below, remember that tree.get_compare(x,y) = (x left of y in tree)
 
@@ -293,7 +265,7 @@ class impurity_trace {
   return b_mat_l.M.is_empty() ? b_mat : b_mat_l * evolve(n->key, tau_maxL(n), std::move(b_mat));
  }
 
- // Reverse as compute_M_R.
+ // Reverse of compute_M_R.
  // Compute matrix products of the subtree, with the time evolution between operator
  // for the nodes with key < tau (i.e. does not include the operator at key == tau).
  // Precondition : n is not null
@@ -322,195 +294,62 @@ class impurity_trace {
  // compute_M_L(n, tau_l, b_i) => compute_M_M(n, beta, tau_l, b_i)
  // compute_M_R(n, tau_r, b_i) => compute_M_M(n, tau_r, 0, b_i)
  block_and_matrix compute_M_M(node n, time_pt tau_l, time_pt tau_r, int b_i) {
-  if (ML_MR_MM_DEBUG) std::cout << "MM n->key: " << n->key << " tauL: " << tau_l << " tauR: " << tau_r << std::endl;
-  if (n == nullptr) return {b_i, {}};                                                      // Cannot guarantee that n is not null
-  if (!tree.get_compare()(tau_l, n->key)) return compute_M_M(n->right, tau_l, tau_r, b_i); // n->key < tau_l
-  if (!tree.get_compare()(n->key, tau_r)) return compute_M_M(n->left, tau_l, tau_r, b_i);  // n->key > tau_r
-  // n->key in ] tau_l, tau_r [
-  block_and_matrix b_mat;
-  if (!n->right) {
-   b_mat = get_op_block_and_matrix(n->op, b_i);
-  } else {
-   auto b_mat_r = compute_M_L(n->right, tau_r, b_i);
-   b_mat = b_mat_r.M.is_empty() ? get_op_block_and_matrix(n->op, b_i) : get_op(n) * evolve(tau_minR(n), n->key, b_mat_r);
-  }
-  if (!n->left) return b_mat;
-  auto b_mat_l = compute_M_R(n->left, tau_l, b_mat.b);
-  return b_mat_l.M.is_empty() ? b_mat : b_mat_l * evolve(n->key, tau_maxL(n), std::move(b_mat));
- }
 
- public:
+  if (ML_MR_MM_DEBUG) std::cout << "MM n->key: " << n->key << " tauL: " << tau_l << " tauR: " << tau_r << std::endl;
+  if (n == nullptr) return {b_i, {}}; // Cannot guarantee that n is not null
+  // tau_l > tau_r => get central part of tree
+  if (tree.get_compare()(tau_l, tau_r)) {
+   if (!tree.get_compare()(tau_l, n->key)) return compute_M_M(n->right, tau_l, tau_r, b_i); // n->key < tau_l
+   if (!tree.get_compare()(n->key, tau_r)) return compute_M_M(n->left, tau_l, tau_r, b_i);  // n->key > tau_r
+   // n->key in ] tau_l, tau_r [
+   block_and_matrix b_mat;
+   if (!n->right) {
+    b_mat = get_op_block_and_matrix(n->op, b_i);
+   } else {
+    auto b_mat_r = compute_M_L(n->right, tau_r, b_i);
+    b_mat = b_mat_r.M.is_empty() ? get_op_block_and_matrix(n->op, b_i) : get_op(n) * evolve(tau_minR(n), n->key, b_mat_r);
+   }
+   if (!n->left) return b_mat;
+   auto b_mat_l = compute_M_R(n->left, tau_l, b_mat.b);
+   return b_mat_l.M.is_empty() ? b_mat : b_mat_l * evolve(n->key, tau_maxL(n), std::move(b_mat));
+  }
+  // tau_r > tau_l => put together outer edges of tree
+  // include time evolution between outer operators around beta/zero if needed
+  if (tree.get_compare()(tau_r, tau_l)) {
+   // M_M = M_R(tau_l) * evo_{min tree}^{max tree} * M_L(tau_r)
+   auto b_mat_l = compute_M_L(n, tau_r, b_i);
+   auto b_mat_r = compute_M_R(n, tau_l, b_mat_l.b);
+   if (b_mat_l.M.is_empty()) return b_mat_r; // Covers case in which both are empty
+   if (b_mat_r.M.is_empty()) return b_mat_l;
+   return b_mat_r * evolve(tree.min_key(n), tree.max_key(n), b_mat_l);
+  }
+ }
+// // Compute matrix product of operators and time evolution from operator to right of tau_l to operator to the left of tau_r
+// // Important -- does NOT include operator at tau_l and tau_r nor the time evolution to tau_l or tau_r!
+// // compute_M_L(n, tau_l, b_i) => compute_M_M(n, beta, tau_l, b_i)
+// // compute_M_R(n, tau_r, b_i) => compute_M_M(n, tau_r, 0, b_i)
+// block_and_matrix compute_M_M(node n, time_pt tau_l, time_pt tau_r, int b_i) {
+//  if (ML_MR_MM_DEBUG) std::cout << "MM n->key: " << n->key << " tauL: " << tau_l << " tauR: " << tau_r << std::endl;
+//  if (n == nullptr) return {b_i, {}};                                                      // Cannot guarantee that n is not null
+//  if (!tree.get_compare()(tau_l, n->key)) return compute_M_M(n->right, tau_l, tau_r, b_i); // n->key < tau_l
+//  if (!tree.get_compare()(n->key, tau_r)) return compute_M_M(n->left, tau_l, tau_r, b_i);  // n->key > tau_r
+//  // n->key in ] tau_l, tau_r [
+//  block_and_matrix b_mat;
+//  if (!n->right) {
+//   b_mat = get_op_block_and_matrix(n->op, b_i);
+//  } else {
+//   auto b_mat_r = compute_M_L(n->right, tau_r, b_i);
+//   b_mat = b_mat_r.M.is_empty() ? get_op_block_and_matrix(n->op, b_i) : get_op(n) * evolve(tau_minR(n), n->key, b_mat_r);
+//  }
+//  if (!n->left) return b_mat;
+//  auto b_mat_l = compute_M_R(n->left, tau_l, b_mat.b);
+//  return b_mat_l.M.is_empty() ? b_mat : b_mat_l * evolve(n->key, tau_maxL(n), std::move(b_mat));
+// }
+
+//FIXME remove these functions if unused
  time_pt _beta = make_time_pt_beta(config->beta());
  time_pt _zero = make_time_pt_zero(config->beta());
  std::vector<int> contributing_blocks; // Which blocks contributed to the trace in the last call of compute()?
-
- //*********************************************************************************
- // Compute 1) trace for glued configuratons with op_l and op_r shifted to their
- //            respective right neighbours (second operator of the chosen pair)
- //         2) integral of trace for sliding times of op_l and op_r; they can
- //            slide between neighbouring operators, but cannot exceed beta/0
- //*********************************************************************************
- std::pair<trace_t, trace_t> compute_sliding_trace_integral(std::vector<node> const& flat_config, int index_node_l,
-                                                            int index_node_r, std::vector<int> const& blocks) {
-
-  // Preconditions: chosen operator with index_node is always first of a pair,
-  // i.e. there is at least one operator to the right of op(index_node)
-  auto is_i_first_op = (index_node_l == 0);
-  auto node_r = flat_config[index_node_r];
-  auto tau_r = node_r->key;
-  auto node_l = flat_config[index_node_l];
-  auto tau_l = node_l->key;
-  auto root = tree.get_root();
-  auto conf_size = flat_config.size();
-  trace_t sliding_trace = 0, int_trace = 0;
-
-  // Determine if cycling around with j operator or not
-  auto is_r_last_op = (index_node_r == conf_size - 1);
-  auto r_plus_one = is_r_last_op ? 0 : index_node_r + 1 ; // Cycle around?
-
-  // If operator is the leftmost in config (closest to tau=beta), tau4 = beta
-  // then do not evolve to beta at the end!
-  // Do not check if operator is rightmost as we are always shifting first operator in a pair
-  auto tau1 = flat_config[r_plus_one]->key;
-  auto tau2 = flat_config[index_node_r - 1]->key;
-  auto tau3 = flat_config[index_node_l + 1]->key;
-  auto tau4 = (is_i_first_op ? _beta : flat_config[index_node_l - 1]->key);
-
-  if (is_r_last_op) {
-
-   for (auto bl : blocks) {
-
-    // FIXME
-    //compute_matrix(root, bl);
-
-    // Matrix with c_dag,c operators stuck together
-    // mat =      evo * op_r * M_L * evo * op_l * M_M * evo
-    // times: beta   t_r=t1  t1    t4   t_l=t3  t3    t2   0
-    // blocks:   b1  b1    bl=b4   b3    b3     b2    b1   b1
-    auto b_mat_M = compute_M_M(root, tau_l, tau_r, get_op_block_map(node_r->op, bl));
-    auto trace_mat = evolve(tau3, tau4, get_op(node_l) * b_mat_M);
-    auto b_mat_L = compute_M_L(root, tau_l, trace_mat.b);
-    assert(b_mat_L.b == bl); //DEBUG
-    trace_mat = evolve(tau1, _beta, get_op(node_r) * (b_mat_L * trace_mat));
-    trace_mat = evolve(_zero, tau2, trace_mat);
-
-    // Matrix for trace normalisation with integrals
-    // mat =   (int [evo2 * op_r * evo_zero] + int [evo_beta * op_r * evo1]) * M_L * int [evo4 * op_l * evo3] * M_M
-    // times:  t2                         zero/beta                          t1    t4                         t3   t2
-    // blocks: b1                                                          bl=b4   b3                         b2   b1
-    auto int_l = int_evo_op_evo(b_mat_M.b, tau3, tau4, node_l->op);   // \int evo4 * op_l * evo3
-    auto int_r = int_evo_op_evo(bl, tau1, tau2, node_r->op);          // \int evo2 * op_r * evo1
-    auto int_mat = int_r * (b_mat_L * (int_l * b_mat_M));
-
-    assert(trace_mat.b == get_op_block_map(node_r->op, bl));
-    assert(int_mat.b == get_op_block_map(node_r->op, bl));
-
-    // Compute trace
-    int_trace = trace(int_mat.M);
-    sliding_trace = trace(trace_mat.M);
-   }
-
-  } else {
-
-   // FIXME leave blocks as a input param or use contributing blocks by default?
-   for (auto bl : blocks) {
-
-    // FIXME
-    //compute_matrix(root, bl);
-
-    // size of tau piece outside first-last operators: beta - tmax + tmin ! the tree is in REVERSE order
-    double dtau_beta = config->beta() - tree.min_key();
-    double dtau_zero = double(tree.max_key());
-    auto dtau_beta_zero = (is_i_first_op ? dtau_zero : dtau_beta + dtau_zero);
-
-    // Matrix with c_dag,c operators stuck together
-    // mat =     M_L * evo34 * op_l * M_M * evo12 * op_r * M_R
-    // blocks:  bl<-b4       b4<-b3  b3<-b2        b2<-b1 b1<-bl
-    // times:      t4            t_l=t3  t2           t_r=t1
-    // Done in three pieces : (M_L * (evo34 * op_l * M_M * (evo12 * op_r * M_R)))
-    auto b_mat_R = compute_M_R(root, tau_r, bl); // b_mat_R.b = b1
-    auto trace_mat = evolve(tau1, tau2, get_op(node_r) * b_mat_R);
-    auto b_mat_M = compute_M_M(root, tau_l, tau_r, trace_mat.b); // b_mat_M.b = b3
-    trace_mat = evolve(tau3, tau4, get_op(node_l) * (b_mat_M * trace_mat));
-    auto b_mat_L = compute_M_L(root, tau_l, trace_mat.b);
-    trace_mat = b_mat_L * trace_mat;
-
-    // Matrix for trace normalisation with integrals
-    // mat =     M_L * int [evo4 * op_l * evo3] * M_M * int [evo2 * op_r * evo1] * M_R
-    // blocks:  bl<-b4            b4<-b3        b3<-b2             b2<-b1         b1<-bl
-    auto int_r = int_evo_op_evo(b_mat_R.b, tau1, tau2, node_r->op); // \int evo2 * op_r * evo1
-    auto int_l = int_evo_op_evo(b_mat_M.b, tau3, tau4, node_l->op); // \int evo4 * op_l * evo3
-    auto int_mat = b_mat_L * (int_l * (b_mat_M * (int_r * b_mat_R)));
-
-    if ((trace_mat.b != bl) or (int_mat.b != bl))
-     TRIQS_RUNTIME_ERROR << " compute_sliding_trace_integral: matrix takes b_i " << bl << " to " << trace_mat.b << " !";
-
-    // trace(mat * exp(- H * (beta - tmax)) * exp (- H * tmin)) to handle the piece outside of the first-last operators.
-    auto dim = get_block_dim(bl);
-    for (int u = 0; u < dim; ++u) {
-     auto evo = std::exp(-dtau_beta_zero * get_block_eigenval(bl, u));
-     int_trace += int_mat.M(u, u) * evo;
-     sliding_trace += trace_mat.M(u, u) * evo;
-    }
-   }
-  }
-  return {sliding_trace, int_trace};
- }
-
-
- //***********************************************************************
- // Compute 1) trace for glued configuratons and
- //         2) integral of trace for sliding times of op
- //***********************************************************************
- std::pair<trace_t, trace_t> compute_sliding_trace_integral_one_pair(std::vector<node> const& flat_config, int index_node,
-                                                                     std::vector<int> const& blocks) {
-
-  auto is_first_op = (index_node == 0);
-  auto n = flat_config[index_node];
-  auto tau = n->key;
-  auto root = tree.get_root();
-  auto conf_size = flat_config.size();
-  // size of tau piece outside first-last operators: beta - tmax + tmin ! the tree is in REVERSE order
-  auto dtau_beta = _beta - tree.min_key();
-  auto dtau_zero = tree.max_key();
-  double dtau_beta_zero = (is_first_op ? double(dtau_zero) : double(dtau_beta + dtau_zero));
-  trace_t sliding_trace = 0, int_trace = 0;
-
-  // If operator is the leftmost in config (closest to tau=beta), tau4 = beta
-  // then do not evolve to beta at the end!
-  // Do not check if operator is rightmost as we are always shifting first operator in a pair
-  auto tau1 = ((index_node + 1 == conf_size) ? _zero : flat_config[index_node + 1]->key);
-  auto tau2 = ((index_node == 0) ? _beta : flat_config[index_node - 1]->key);
-
-  for (auto bl : blocks) {
-
-   // Matrix with c_dag,c operators stuck together
-   // mat =     M_L * evo12 *  op  * M_R
-   // blocks:  bl<-b2        b2<-b1 b1<-bl
-   // Done in three pieces : (M_L * (evo12 * op_r * (M_R)))
-   auto b_mat_R = compute_M_R(root, tau, bl); // b_mat_R.b = b1
-   auto trace_mat = evolve(tau1, tau2, get_op(n) * b_mat_R);
-   auto b_mat_L = compute_M_L(root, tau, trace_mat.b);
-   trace_mat = b_mat_L * trace_mat;
-
-   // Matrix for trace normalisation with integrals
-   // mat =     M_L * int [evo2 * op_r * evo1] * M_R
-   // blocks:  bl<-b2            b2<-b1         b1<-bl
-   auto int_mat = b_mat_L * (int_evo_op_evo(b_mat_R.b, tau1, tau2, n->op) * b_mat_R);
-
-   if ((trace_mat.b != bl) or (int_mat.b != bl))
-    TRIQS_RUNTIME_ERROR << " compute_sliding_trace_integral: matrix takes b_i " << bl << " to " << trace_mat.b << " !";
-
-   // trace(mat * exp(- H * (beta - tmax)) * exp (- H * tmin)) to handle the piece outside of the first-last operators.
-   auto dim = get_block_dim(bl);
-   for (int u = 0; u < dim; ++u) {
-    auto evo = std::exp(-dtau_beta_zero * get_block_eigenval(bl, u));
-    int_trace += int_mat.M(u, u) * evo;
-    sliding_trace += trace_mat.M(u, u) * evo;
-   }
-  }
-  return {sliding_trace, int_trace};
- }
 
  private:
  /*************************************************************************
