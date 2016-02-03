@@ -43,7 +43,7 @@ class solver_core {
  block_gf<imtime,matrix_real_valued> _G_tau_real;
  block_gf<legendre> _G_l;                   // Green's function containers: Legendre coefficients
  std::vector<matrix<double>> _density_matrix; // density matrix, when used in Norm mode
- gf<imtime,scalar_valued> _correlator;
+ gf<imfreq,scalar_valued> _correlator;
  triqs::mpi::communicator _comm;            // define the communicator, here MPI_COMM_WORLD
  solve_parameters_t _last_solve_parameters; // parameters of the last call to solve
  mc_sign_type _average_sign;
@@ -82,7 +82,7 @@ class solver_core {
  std::vector<matrix<double>> const & density_matrix() const { return _density_matrix;}
 
  /// Four body correlator
- gf_view<imtime, scalar_valued> correlator() { return _correlator; }
+ gf_view<imfreq, scalar_valued> correlator() { return _correlator; }
 
  /// Diagonalization of h_loc
  atom_diag const & h_loc_diagonalization() const { return h_diag;}

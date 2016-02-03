@@ -123,15 +123,15 @@ bool PRINT_DEBUG = false;
   data.imp_trace.check_trace_from_ML_MR(flat_config, i, PRINT_DEBUG);
 #endif
 
-  // Move the left operator of the pair to the right, could be either c or cdag, and
-  // compute the trace and normalisation integral
-  auto tr_int = compute_sliding_trace_integral_one_pair(flat_config, i, blocks);
-  auto tr_over_int = tr_int.first / tr_int.second;
-  if (!std::isfinite(tr_over_int)) {
-   if ((tr_int.first < 1.e-20) and (tr_int.second < 1.e-20)) continue; //FIXME what thresholds to use for 0/0 check?
-   TRIQS_RUNTIME_ERROR << "tr_over_int not finite " << tr_int.first << " " << tr_int.second ;
-  }
-
+//  // Move the left operator of the pair to the right, could be either c or cdag, and
+//  // compute the trace and normalisation integral
+//  auto tr_int = compute_sliding_trace_integral_one_pair(flat_config, i, blocks);
+//  auto tr_over_int = tr_int.first / tr_int.second;
+//  if (!std::isfinite(tr_over_int)) {
+//   if ((tr_int.first < 1.e-20) and (tr_int.second < 1.e-20)) continue; //FIXME what thresholds to use for 0/0 check?
+//   TRIQS_RUNTIME_ERROR << "tr_over_int not finite " << tr_int.first << " " << tr_int.second ;
+//  }
+auto tr_over_int = 1.0;
   // --- Det ---
 
   // Properties corresponding to det

@@ -89,7 +89,7 @@ impurity_trace::impurity_trace(configuration& c, atom_diag const& h_diag_, solve
 // i.e. the rightmost operator is taken for block b
 // precondition: b != -1, n != null
 // returns -1 if cancellation structural
-int impurity_trace::compute_block_table(node n, int b) {
+int impurity_trace::compute_block_table(node n, int b) const {
 
  if (b < 0) TRIQS_RUNTIME_ERROR << " b < 0";
  if (!n->modified) return n->cache.block_table[b];

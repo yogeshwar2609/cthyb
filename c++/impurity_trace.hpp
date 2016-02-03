@@ -174,10 +174,10 @@ class impurity_trace {
  // Recursive function for tree traversal
  public: //FIXME
  int compute_block_table(node n, int b);
- private:
  std::pair<int, double> compute_block_table_and_bound(node n, int b, double bound_threshold, bool use_threshold = true);
  block_and_matrix compute_matrix(node n, int b);
 
+ private:
  void update_cache_impl(node n);
  void update_dtau(node n);
 
@@ -191,6 +191,16 @@ class impurity_trace {
                                               bool print); // compare matrix to that of a linear method (ie. no tree)
 
  public:
+ std::vector<int> contributing_blocks;   // Which blocks contributed to the trace in the last call of compute()?
+ std::vector<int> get_nonstructurally_zero_blocks() { // Which blocks are structurally non-zero?
+  std::vector<int> non_structzero_blocks;
+  non_structzero_blocks.reserve(n_blocks);
+  for (auto bl : range(n_blocks)) {
+   if (compute_block_table(tree.get_root(), bl) == bl) non_structzero_blocks.push_back(bl);
+  }
+  return non_structzero_blocks;
+ }
+
  // checks
  double diff_threshold = 1.e-8;
  void check_ML_MM_MR(bool print = false);
@@ -216,6 +226,9 @@ class impurity_trace {
  block_and_matrix get_cache_matrix(node n, int b) {
   if ((b == -1) or (n == nullptr)) return {b, {}};
   return {n->cache.block_table[b], n->cache.matrices[b]};
+ }
+ int get_cache_block(node n, int b) {
+  return ((b == -1) or (n == nullptr)) ? b : n->cache.block_table[b];
  }
 
  // Evolve M from tau1 to tau2
@@ -245,6 +258,20 @@ class impurity_trace {
 
  // FIXME -- remove this?
  bool ML_MR_MM_DEBUG = false;
+
+ // Compute image of entry block b_i at operator at tau
+ // Precondition : n is not null
+ int compute_block_at_tau(node n, time_pt tau, int b_i) {
+  if (ML_MR_MM_DEBUG) std::cout << "MR n->key: " << n->key << " tau: " << tau << std::endl;
+  assert(n != nullptr);
+  if (n->key == tau) return get_cache_block(n->right, b_i);
+  if (tree.get_compare()(n->key, tau))
+   return n->right ? compute_block_at_tau(n->right, tau, b_i) : b_i; // n->key < tau
+  // n->key > tau : M_R(n->left) * evo * op(n) * evo * cache(n->right)
+  auto b = (n->right) ? get_op_block_map(n->op, get_cache_block(n->right, b_i)) : get_op_block_map(n->op, b_i);
+  if (!n->left) return b;
+  return compute_block_at_tau(n->left, tau, b);
+ }
 
  // Compute matrix products of the subtree, with the time evolution between operator
  // for the nodes with key > tau (i.e. does not include the operator at key == tau).
@@ -315,7 +342,7 @@ class impurity_trace {
   }
   // tau_r > tau_l => put together outer edges of tree
   // include time evolution between outer operators around beta/zero if needed
-  if (tree.get_compare()(tau_r, tau_l)) {
+  else if (tree.get_compare()(tau_r, tau_l)) {
    // M_M = M_R(tau_l) * evo_{min tree}^{max tree} * M_L(tau_r)
    auto b_mat_l = compute_M_L(n, tau_r, b_i);
    auto b_mat_r = compute_M_R(n, tau_l, b_mat_l.b);
@@ -323,6 +350,7 @@ class impurity_trace {
    if (b_mat_r.M.is_empty()) return b_mat_l;
    return b_mat_r * evolve(tree.min_key(n), tree.max_key(n), b_mat_l);
   }
+  else TRIQS_RUNTIME_ERROR << "compute_M_M: both operators are at the same time!";
  }
 // // Compute matrix product of operators and time evolution from operator to right of tau_l to operator to the left of tau_r
 // // Important -- does NOT include operator at tau_l and tau_r nor the time evolution to tau_l or tau_r!
@@ -349,7 +377,6 @@ class impurity_trace {
 //FIXME remove these functions if unused
  time_pt _beta = make_time_pt_beta(config->beta());
  time_pt _zero = make_time_pt_zero(config->beta());
- std::vector<int> contributing_blocks; // Which blocks contributed to the trace in the last call of compute()?
 
  private:
  /*************************************************************************
