@@ -173,7 +173,7 @@ class impurity_trace {
 
  // Recursive function for tree traversal
  public: //FIXME
- int compute_block_table(node n, int b);
+ int compute_block_table(node n, int b) const;
  std::pair<int, double> compute_block_table_and_bound(node n, int b, double bound_threshold, bool use_threshold = true);
  block_and_matrix compute_matrix(node n, int b);
 

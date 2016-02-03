@@ -172,7 +172,7 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
 #endif
 
    // Compute the trace and normalisation integral, and accumulate into the correlator for all frequencies
-   compute_sliding_trace_integral(flat_config, i, j, blocks, coef, correlator);
+   compute_sliding_trace_integral(flat_config, i, j, blocks, correlator_accum);
 
    // --- Accumulate ---
 
@@ -437,11 +437,11 @@ double measure_four_body_corr::compute_evolution_integral(double lamb1, double l
 //            slide between neighbouring operators
 //*********************************************************************************
 void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> const& flat_config, int index_node_l,
-                                                            int index_node_r, std::vector<int> const& blocks, double coef,
+                                                            int index_node_r, std::vector<int> const& blocks,
                                                             gf<imfreq, scalar_valued> & correlator_accum) {
   // Configuration
-  //   /------ M_M_outer(tr1,tl2) -------------------------------------------\
-  //   |                           M_M_inner(tl1,tr2)                        |
+  //   /------ M_outer(tr1,tl2) ---------------------------------------------\
+  //   |                           M_inner(tl1,tr2)                          |
   //   \--------->                 <----------->                 <-----------/
   //    | ------ | --- x --- x --- | --------- | --- x --- x --- | ----------|
   // beta              l2    l1                      r2    r1                0
@@ -476,41 +476,115 @@ void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> co
   //     mat = M_M(tr1,tl2) * int[evo_tl^t4 * op(l2) * evo * op(l1) * evo_t3^tl] *
   //           M_M(tl1,tr2) * int[evo_tr^t2 * op(r2) * evo * op(r1) * evo_t1^tr]
   // or  mat = M_M(tr1,tl2) * int[evo^t4 * op(l2) * evo * op(l1) * evo * op(r2) * evo * op(r1) * evo_t1]
-  block_and_matrix trace_mat, int_mat;
+  block_and_matrix M_inner = {-1, {}};
+  block_and_matrix int_mat;
   auto b1 = imp_tr.compute_block_at_tau(root, tau_r1, bl);
   if (!is_4op) { // 2 x 2-operator integrals
    auto int_r = compute_normalization_integral(b1, tau1, tau2, node_r1->op, node_r2->op);
-   auto M_M_inner = imp_tr.compute_M_M(root, tau_l1, tau_r2, int_r.b);
-   auto int_l = compute_normalization_integral(M_M_inner.b, tau3, tau4, node_l1->op, node_l2->op);
-   int_mat = int_l * (M_M_inner * int_r);
+   M_inner = imp_tr.compute_M_M(root, tau_l1, tau_r2, int_r.b);
+   auto int_l = compute_normalization_integral(M_inner.b, tau3, tau4, node_l1->op, node_l2->op);
+   int_mat = int_l * (M_inner * int_r);
   } else { // 1 x 4-operator integral
    int_mat = compute_normalization_integral(b1, tau1, tau4, node_r1->op, node_r2->op, node_l1->op, node_l2->op);
   }
-  auto M_M_outer = imp_tr.compute_M_M(root, tau_r1, tau_l2, int_mat.b);
-  if (M_M_outer.b != b1) TRIQS_RUNTIME_ERROR << " compute_sliding_trace_integral: start and end blocks do not match.";
-  int_mat = M_M_outer * int_mat;
-  int_trace += trace(int_mat.M);
+  auto M_outer = imp_tr.compute_M_M(root, tau_r1, tau_l2, int_mat.b);
+  if (M_outer.b != b1) TRIQS_RUNTIME_ERROR << " compute_sliding_trace_integral: start and end blocks do not match.";
+  int_trace += trace((M_outer * int_mat).M);
 
   // Matrix with c_dag,c operators stuck together: tau_l2==tau_l1
-  // mat = M_M(tr1,tl2) * evo_tl^t4 * op(l2) op(l1) * evo_t3^tl * M_M(tl1,tr2) * evo_tr^t2 * op(r2) op(r1) * evo_t1^tr
-  if (!is_4op) { // 2 x 2-operator integrals
-   // Sliding trace
-   auto b_mat_r = compute_fourier_sliding_trace(b1, tau1, tau2, node_r1->op, node_r2->op);
-   auto b_mat_l = compute_fourier_sliding_trace(M_M_inner.b, tau3, tau4, node_l1->op, node_l2->op);
-   trace_mat = b_mat_l * M_M_inner * b_mat_r;
-  } else { // 1 x 4-operator integral
-   // Sliding trace
-   trace_mat = compute_fourier_sliding_trace(b1, tau1, tau4, node_r1->op, node_r2->op, node_l1->op, node_l2->op);
-  }
-  trace_mat = M_M_outer * trace_mat;
+  // mat = M_outer(tr1,tl2) * evo_tl^t4 * op(l2) op(l1) * evo_t3^tl * M_inner(tl1,tr2) * evo_tr^t2 * op(r2) op(r1) * evo_t1^tr
 
-  // Compute trace
-  sliding_trace += trace(trace_mat.M);
-//  auto tr_over_int = sliding_trace / int_trace;
-//  if (!std::isfinite(tr_over_int)) {
-//   if ((sliding_trace < 1.e-20) and (int_trace < 1.e-20)) continue; // FIXME what thresholds to use for 0/0 check?
-//   TRIQS_RUNTIME_ERROR << "tr_over_int not finite " << sliding_trace << " " << int_trace;
-//  }
+  //FIXME auto iwn = [&](int n) { return dcomplex(0, 1) * (2 * n + 1) * 3.14 / data.config.beta(); };
+  //auto iwn = [&](int n) { return (2 * n + 1) * 3.14 / data.config.beta(); };
+  for (auto const& n : correlator_accum.mesh())
+   correlator_accum[n] = compute_fourier_sliding_trace(bl, is_4op, tau1, tau2, tau3, tau4, node_r1->op, node_r2->op, node_l1->op,
+                                                       node_l2->op, M_inner, M_outer, iwn);
+
+//  triqs::clef::placeholder<0> iwn_;
+//  correlator_accum(iwn_) << compute_fourier_sliding_trace(bl, is_4op, tau1, tau2, tau3, tau4, node_r1->op, node_r2->op, node_l1->op,
+//                                                          node_l2->op, M_inner, M_outer, iwn_);
  }
+
+ // Normalise trace
+ //auto correlator_accum = correlator_accum / int_trace;
+// if (!std::isfinite(tr_over_int)) {
+//  if ((sliding_trace < 1.e-20) and (int_trace < 1.e-20)) continue; // FIXME what thresholds to use for 0/0 check?
+//  TRIQS_RUNTIME_ERROR << "tr_over_int not finite " << sliding_trace << " " << int_trace;
+// }
+}
+
+double measure_four_body_corr::compute_fourier_sliding_trace(int b_i, bool is_4op, time_pt tau1, time_pt tau2, time_pt tau3,
+                                                             time_pt tau4, op_desc const& op1, op_desc const& op2,
+                                                             op_desc const& op3, op_desc const& op4,
+                                                             block_and_matrix const& M_inner, block_and_matrix const& M_outer,
+                                                             double iwn) {
+ auto b1 = b_i;
+ auto M1 = imp_tr.get_op_block_matrix(op1, b1);
+ auto b2 = imp_tr.get_op_block_map(op1, b1);
+ auto M2 = imp_tr.get_op_block_matrix(op2, b2);
+ auto b3 = imp_tr.get_op_block_map(op2, b2);
+ auto b4 = is_4op ? b3 : M_inner.b;
+ auto M3 = imp_tr.get_op_block_matrix(op3, b4);
+ auto b5 = imp_tr.get_op_block_map(op3, b4);
+ auto M4 = imp_tr.get_op_block_matrix(op4, b5);
+ auto b6 = imp_tr.get_op_block_map(op4, b5);
+ auto b_f = b6;
+ auto dim1 = imp_tr.get_block_dim(b1);
+ auto dim2 = imp_tr.get_block_dim(b2);
+ auto dim3 = imp_tr.get_block_dim(b3);
+ auto dim4 = imp_tr.get_block_dim(b4);
+ auto dim5 = imp_tr.get_block_dim(b5);
+ auto dim6 = imp_tr.get_block_dim(b6);
+ double trace_iwn = 0.0;
+ if (!is_4op) { // equivalent to !M_inner.M.is_empty()
+  double dtau_r = double(tau2 - tau1);
+  double dtau_l = double(tau4 - tau3);
+  auto dtau4_exp = pow<2>(dtau_r) * pow<2>(dtau_l) * std::exp(-iwn * (tau4 - tau1));
+  for (int i6 = 0; i6 < dim6; ++i6) {
+   auto lamb6 = imp_tr.get_block_eigenval(b6, i6);
+   for (int i5 = 0; i5 < dim5; ++i5) {
+    m4 = M4(i6, i5);
+    for (int i4 = 0; i4 < dim4; ++i4) {
+     auto lamb4 = imp_tr.get_block_eigenval(b4, i4);
+     auto m4m3evo64 = m4 * M3(i5, i4) * compute_evolution_integral(lamb4, lamb6 + iwn);
+     for (int i3 = 0; i3 < dim3; ++i3) {
+      auto lamb3 = imp_tr.get_block_eigenval(b3, i3);
+      auto m4m3evo64_mi = m4m3evo64 * M_inner.M(i4, i3);
+      for (int i2 = 0; i2 < dim2; ++i2) {
+       auto m4m3evo64_mi_m2 = m4m3evo64_mi * M2(i3, i2);
+       for (int i1 = 0; i1 < dim1; ++i1) {
+        auto lamb1 = imp_tr.get_block_eigenval(b1, i1);
+        auto evo31 = compute_evolution_integral(lamb1 + iwn, lamb3);
+        trace_iwn += dtau4_exp * M_outer.M(i1, i6) * m4m3evo64_mi_m2 * M1(i2, i1) * evo31;
+       }
+      }
+     }
+    }
+   }
+  }
+ } else { // is_4op
+  double dtau = double(tau4 - tau1);
+  auto dtau4_exp = pow<4>(dtau) * std::exp(-iwn * dtau);
+  for (int i6 = 0; i6 < dim6; ++i6) {
+   auto lamb6 = imp_tr.get_block_eigenval(b6, i6);
+   for (int i5 = 0; i5 < dim5; ++i5) {
+    m4 = M4(i6, i5);
+    for (int i4 = 0; i4 < dim4; ++i4) {
+     auto lamb4 = imp_tr.get_block_eigenval(b4, i4);
+     auto m4m3 = m4 * M3(i5, i4);
+     for (int i2 = 0; i2 < dim2; ++i2) {
+      auto m4m3_m2 = m4m3 * M2(i4, i2);
+      for (int i1 = 0; i1 < dim1; ++i1) {
+       auto lamb1 = imp_tr.get_block_eigenval(b1, i1);
+       auto evo = compute_evolution_integral(lamb1 + iwn, lamb3, lamb4, lamb6 + iwn);
+       trace_iwn += dtau4_exp * M_outer.M(i1, i6) * m4m3_m2 * M1(i2, i1) * evo;
+      }
+     }
+    }
+   }
+  }
+ }
+}
+ return trace_iwn;
 }
 }

@@ -56,11 +56,14 @@ struct measure_four_body_corr {
  block_and_matrix compute_normalization_integral(int b_i, time_pt tau_i, time_pt tau_f, op_desc const& op1);
  block_and_matrix compute_normalization_integral(int b_i, time_pt tau_i, time_pt tau_f, op_desc const& op1, op_desc const& op2);
  block_and_matrix compute_normalization_integral(int b_i, time_pt tau_i, time_pt tau_f, op_desc const& op1, op_desc const& op2,
-                                           op_desc const& op3, op_desc const& op4);
+                                                 op_desc const& op3, op_desc const& op4);
  double compute_evolution_integral(double lamb1, double lamb2);
  double compute_evolution_integral(double lamb1, double lamb2, double lamb3);
  double compute_evolution_integral(double lamb1, double lamb2, double lamb3, double lamb4, double lamb5);
- std::pair<trace_t, trace_t> compute_sliding_trace_integral(std::vector<node> const& flat_config, int index_node_l,
-                                                            int index_node_r, std::vector<int> const& blocks);
+ void compute_sliding_trace_integral(std::vector<node> const& flat_config, int index_node_l, int index_node_r,
+                                     std::vector<int> const& blocks, gf<imfreq, scalar_valued>& correlator_accum);
+ double compute_fourier_sliding_trace(int b_i, bool is_4op, time_pt tau1, time_pt tau2, time_pt tau3, time_pt tau4,
+                                      op_desc const& op1, op_desc const& op2, op_desc const& op3, op_desc const& op4,
+                                      block_and_matrix const& M_inner, block_and_matrix const& M_outer, double iwn);
 };
 }
