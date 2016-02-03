@@ -171,10 +171,13 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
    imp_tr.check_trace_from_ML_MM_MR(flat_config, i, j, PRINT_DEBUG); // FIXME -- generalise for cyclic trace
 #endif
 
-   if ((anticommute) and (swapped43 xor swapped21)) s = -s;
-   coef *= s * (MM1 - MM2);
    // Compute the trace and normalisation integral, and accumulate into the correlator for all frequencies
    compute_sliding_trace_integral(flat_config, i, j, blocks, coef, correlator);
+
+   // --- Accumulate ---
+
+   if ((anticommute) and (swapped43 xor swapped21)) s = -s;
+   correlator += correlator_accum * coef * s * (MM1 - MM2);
 
   } // Second pair
  }  // First pair
@@ -435,14 +438,16 @@ double measure_four_body_corr::compute_evolution_integral(double lamb1, double l
 //*********************************************************************************
 void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> const& flat_config, int index_node_l,
                                                             int index_node_r, std::vector<int> const& blocks, double coef,
-                                                            gf_view<imfreq, scalar_valued> correlator) {
- //    -----------M_M(tr1,tl2) ---------------------------------------------
- //   |                           M_M(tl1,tr2)                              |
- //   \--------->                 <----------->                 <-----------/
- //    | ------ | --- x --- x --- | --------- | --- x --- x --- | ----------|
- // beta              l2    l1                      r2    r1                0
- //             t4                t3          t2                t1
- //   bl=b7        b6    b5    b4                b3    b2    b1             bl
+                                                            gf<imfreq, scalar_valued> & correlator_accum) {
+  // Configuration
+  //   /------ M_M_outer(tr1,tl2) -------------------------------------------\
+  //   |                           M_M_inner(tl1,tr2)                        |
+  //   \--------->                 <----------->                 <-----------/
+  //    | ------ | --- x --- x --- | --------- | --- x --- x --- | ----------|
+  // beta              l2    l1                      r2    r1                0
+  //             t4                t3          t2                t1
+  //   bl=b7        b6    b5    b4                b3    b2    b1             bl
+
  // Preconditions: chosen operator with index_node is always first of a pair, with index 2,
  // i.e. there is at least one operator to the right of op(index_node)
  auto node_r1 = flat_config[index_node_r + 1];
@@ -460,21 +465,13 @@ void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> co
  auto is_4op = (index_node_l + 2 == index_node_r);
  auto root = tree.get_root();
  trace_t sliding_trace = 0, int_trace = 0;
+ correlator_accum() = 0.;
 
  for (auto bl : blocks) {
 
   imp_tr.compute_matrix(root, bl); // Update matrices without the Yee quick exit
 
-  // Matrix with c_dag,c operators stuck together
-  // mat = M_M(tr1,tl2) * evo_tl^t4 * op(l2) op(l1) * evo_t3^tl * M_M(tl1,tr2) * evo_tr^t2 * op(r2) op(r1) * evo_t1^tr
-  //   /------ M_M_outer(tr1,tl2) -------------------------------------------\
-  //   |                           M_M_inner(tl1,tr2)                        |
-  //   \--------->                 <----------->                 <-----------/
-  //    | ------ | --- x     x --- | --------- | --- x     x --- | ----------|
-  // beta              l2 == l1                      r2 == r1                0
-  //             t4                t3          t2                t1
-  //   bl=b7        b6    b5    b4                b3    b2    b1             bl
-
+  // Calculate general normalization integrals first, they are frequency independent
   // Matrix for trace normalisation with integrals
   //     mat = M_M(tr1,tl2) * int[evo_tl^t4 * op(l2) * evo * op(l1) * evo_t3^tl] *
   //           M_M(tl1,tr2) * int[evo_tr^t2 * op(r2) * evo * op(r1) * evo_t1^tr]
@@ -482,34 +479,38 @@ void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> co
   block_and_matrix trace_mat, int_mat;
   auto b1 = imp_tr.compute_block_at_tau(root, tau_r1, bl);
   if (!is_4op) { // 2 x 2-operator integrals
-   // Sliding trace
-   auto b_mat_r = compute_fourier_sliding_trace(b1, tau1, tau2, node_r1->op, node_r2->op);
-   auto M_M_inner = imp_tr.compute_M_M(root, tau_l1, tau_r2, b_mat_r.b);
-   auto b_mat_l = compute_fourier_sliding_trace(M_M_inner.b, tau3, tau4, node_l1->op, node_l2->op);
-   trace_mat = b_mat_l * M_M_inner * b_mat_r;
-   // Normalization integral
    auto int_r = compute_normalization_integral(b1, tau1, tau2, node_r1->op, node_r2->op);
+   auto M_M_inner = imp_tr.compute_M_M(root, tau_l1, tau_r2, int_r.b);
    auto int_l = compute_normalization_integral(M_M_inner.b, tau3, tau4, node_l1->op, node_l2->op);
    int_mat = int_l * (M_M_inner * int_r);
   } else { // 1 x 4-operator integral
-   // Sliding trace
-   trace_mat = compute_fourier_sliding_trace(b1, tau1, tau4, node_r1->op, node_r2->op, node_l1->op, node_l2->op);
-   // Normalization integral
    int_mat = compute_normalization_integral(b1, tau1, tau4, node_r1->op, node_r2->op, node_l1->op, node_l2->op);
   }
-  auto M_M_outer = imp_tr.compute_M_M(root, tau_r1, tau_l2, trace_mat.b);
+  auto M_M_outer = imp_tr.compute_M_M(root, tau_r1, tau_l2, int_mat.b);
   if (M_M_outer.b != b1) TRIQS_RUNTIME_ERROR << " compute_sliding_trace_integral: start and end blocks do not match.";
-  trace_mat = M_M_outer * trace_mat;
   int_mat = M_M_outer * int_mat;
+  int_trace += trace(int_mat.M);
+
+  // Matrix with c_dag,c operators stuck together: tau_l2==tau_l1
+  // mat = M_M(tr1,tl2) * evo_tl^t4 * op(l2) op(l1) * evo_t3^tl * M_M(tl1,tr2) * evo_tr^t2 * op(r2) op(r1) * evo_t1^tr
+  if (!is_4op) { // 2 x 2-operator integrals
+   // Sliding trace
+   auto b_mat_r = compute_fourier_sliding_trace(b1, tau1, tau2, node_r1->op, node_r2->op);
+   auto b_mat_l = compute_fourier_sliding_trace(M_M_inner.b, tau3, tau4, node_l1->op, node_l2->op);
+   trace_mat = b_mat_l * M_M_inner * b_mat_r;
+  } else { // 1 x 4-operator integral
+   // Sliding trace
+   trace_mat = compute_fourier_sliding_trace(b1, tau1, tau4, node_r1->op, node_r2->op, node_l1->op, node_l2->op);
+  }
+  trace_mat = M_M_outer * trace_mat;
 
   // Compute trace
-  sliding_trace = trace(trace_mat.M);
-  int_trace = trace(int_mat.M);
-  auto tr_over_int = sliding_trace / int_trace;
-  if (!std::isfinite(tr_over_int)) {
-   if ((sliding_trace < 1.e-20) and (int_trace < 1.e-20)) continue; // FIXME what thresholds to use for 0/0 check?
-   TRIQS_RUNTIME_ERROR << "tr_over_int not finite " << sliding_trace << " " << int_trace;
-  }
+  sliding_trace += trace(trace_mat.M);
+//  auto tr_over_int = sliding_trace / int_trace;
+//  if (!std::isfinite(tr_over_int)) {
+//   if ((sliding_trace < 1.e-20) and (int_trace < 1.e-20)) continue; // FIXME what thresholds to use for 0/0 check?
+//   TRIQS_RUNTIME_ERROR << "tr_over_int not finite " << sliding_trace << " " << int_trace;
+//  }
  }
 }
 }

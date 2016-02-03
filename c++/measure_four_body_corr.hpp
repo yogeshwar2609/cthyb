@@ -37,6 +37,7 @@ struct measure_four_body_corr {
 
  qmc_data const& data;
  gf_view<imfreq, scalar_valued> correlator;
+ gf<imfreq, scalar_valued> correlator_accum;
  mc_sign_type z;
  qmc_data::trace_t new_atomic_weight, new_atomic_reweighting;
  arrays::array<dcomplex, 4> coefficients;          // Coefficients of op*op, where op is a quadratic operator
