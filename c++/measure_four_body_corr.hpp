@@ -20,6 +20,7 @@
  ******************************************************************************/
 #pragma once
 #include <triqs/gfs.hpp>
+#include <triqs/clef.hpp>
 #include "triqs/statistics/histograms.hpp" //FIXME
 #include "./qmc_data.hpp"
 #include "./impurity_trace.hpp"
@@ -27,6 +28,7 @@
 namespace cthyb {
 
 using namespace triqs::gfs;
+using triqs::clef::placeholder;
 using mc_sign_type = double;
 using node = impurity_trace::node;
 using trace_t = impurity_trace::trace_t;
@@ -37,7 +39,7 @@ struct measure_four_body_corr {
 
  qmc_data const& data;
  gf_view<imfreq, scalar_valued> correlator;
- gf<imfreq, scalar_valued> correlator_accum;
+ gf<imfreq, scalar_valued, no_tail> correlator_accum;
  mc_sign_type z;
  qmc_data::trace_t new_atomic_weight, new_atomic_reweighting;
  arrays::array<dcomplex, 4> coefficients;          // Coefficients of op*op, where op is a quadratic operator
@@ -49,7 +51,7 @@ struct measure_four_body_corr {
 //FIXME
  statistics::histogram_segment_bin binned_taus = {0, data.config.beta(), 100, "histo_binned_taus.dat"};
 
- measure_four_body_corr(qmc_data const& data, gf_view<imfreq, scalar_valued> correlator, fundamental_operator_set const & fops, many_body_operator const & A, bool anticommute);
+ measure_four_body_corr(qmc_data const& data, gf_view<imfreq, scalar_valued, no_tail> correlator, fundamental_operator_set const & fops, many_body_operator const & A, bool anticommute);
  void accumulate(mc_sign_type s);
  void collect_results(triqs::mpi::communicator const& c);
 
@@ -57,13 +59,11 @@ struct measure_four_body_corr {
  block_and_matrix compute_normalization_integral(int b_i, time_pt tau_i, time_pt tau_f, op_desc const& op1, op_desc const& op2);
  block_and_matrix compute_normalization_integral(int b_i, time_pt tau_i, time_pt tau_f, op_desc const& op1, op_desc const& op2,
                                                  op_desc const& op3, op_desc const& op4);
- double compute_evolution_integral(double lamb1, double lamb2);
- double compute_evolution_integral(double lamb1, double lamb2, double lamb3);
- double compute_evolution_integral(double lamb1, double lamb2, double lamb3, double lamb4, double lamb5);
  void compute_sliding_trace_integral(std::vector<node> const& flat_config, int index_node_l, int index_node_r,
-                                     std::vector<int> const& blocks, gf<imfreq, scalar_valued>& correlator_accum);
- double compute_fourier_sliding_trace(int b_i, bool is_4op, time_pt tau1, time_pt tau2, time_pt tau3, time_pt tau4,
-                                      op_desc const& op1, op_desc const& op2, op_desc const& op3, op_desc const& op4,
-                                      block_and_matrix const& M_inner, block_and_matrix const& M_outer, double iwn);
+                                     std::vector<int> const& blocks, gf<imfreq, scalar_valued, no_tail>& correlator_accum);
+ dcomplex compute_fourier_sliding_trace(int b_i, bool is_4op, time_pt tau1, time_pt tau2, time_pt tau3, time_pt tau4,
+                                        op_desc const& op1, op_desc const& op2, op_desc const& op3, op_desc const& op4,
+                                        block_and_matrix const& M_inner, block_and_matrix const& M_outer, matsubara_freq iwn_) const;
+ TRIQS_CLEF_IMPLEMENT_LAZY_METHOD(measure_four_body_corr, compute_fourier_sliding_trace);
 };
 }

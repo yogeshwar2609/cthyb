@@ -37,17 +37,17 @@ class solver_core {
  double beta;
  atom_diag h_diag;
  std::map<std::string, indices_type> gf_struct;
- many_body_op_t _h_loc;                  // The local Hamiltonian = h_int + h0
- block_gf<imfreq> _G0_iw;                   // Green's function containers: imaginary-freq Green's functions
- block_gf<imtime> _Delta_tau, _G_tau;       // Green's function containers: imaginary-time Green's functions
- block_gf<imtime,matrix_real_valued> _G_tau_real;
- block_gf<legendre> _G_l;                   // Green's function containers: Legendre coefficients
+ many_body_op_t _h_loc;               // The local Hamiltonian = h_int + h0
+ block_gf<imfreq> _G0_iw;             // Green's function containers: imaginary-freq Green's functions
+ block_gf<imtime> _Delta_tau, _G_tau; // Green's function containers: imaginary-time Green's functions
+ block_gf<imtime, matrix_real_valued> _G_tau_real;
+ block_gf<legendre> _G_l;                     // Green's function containers: Legendre coefficients
  std::vector<matrix<double>> _density_matrix; // density matrix, when used in Norm mode
- gf<imfreq,scalar_valued> _correlator;
+ gf<imfreq, scalar_valued> _correlator;
  triqs::mpi::communicator _comm;            // define the communicator, here MPI_COMM_WORLD
  solve_parameters_t _last_solve_parameters; // parameters of the last call to solve
  mc_sign_type _average_sign;
- int _solve_status;                         // Status of the solve upon exit: 0 for clean termination, > 0 otherwise.
+ int _solve_status; // Status of the solve upon exit: 0 for clean termination, > 0 otherwise.
 
  public:
 
