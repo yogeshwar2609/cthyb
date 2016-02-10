@@ -250,10 +250,10 @@ void solver_core::solve(solve_parameters_t const & params) {
 
   qmc.add_measure(measure_average_sign{data, _average_sign}, "Average sign");
 
-  if (!params.measure_four_body_correlator.first.is_zero()) {
-   qmc.add_measure(measure_four_body_corr{data, _correlator, fops, params.measure_four_body_correlator.first, params.measure_four_body_correlator.second}, "Four body correlator C_abcd = < x (c+_a c_b) (tau) y (c+_c c_d) (0)>");
-  }
-
+//  if (!params.measure_four_body_correlator.first.is_zero()) {
+//   qmc.add_measure(measure_four_body_corr{data, _correlator, fops, params.measure_four_body_correlator.first, params.measure_four_body_correlator.second}, "Four body correlator C_abcd = < x (c+_a c_b) (tau) y (c+_c c_d) (0)>");
+//  }
+//
 //FIXME
 //  if (!params.measure_two_body_correlator.first.is_zero()) {
 //   qmc.add_measure(measure_two_body_corr{data, fops, params.measure_two_body_correlator.first, params.measure_two_body_correlator.second}, "Two body correlator C_ab = < x (c+_a c_b) >");

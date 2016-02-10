@@ -75,13 +75,14 @@ TEST(CtHyb, Anderson) {
   p.quantum_numbers = qn;
   p.partition_method = "quantum_numbers";
 #endif
-  p.measure_four_body_correlator = {n_up + n_down, false};
+//  p.measure_four_body_correlator = {n_up + n_down, false};
 //  p.measure_density_matrix = true;
 //  p.use_norm_as_weight = true;
 
-
   // Solve!
   solver.solve(p);
+
+  std::cout << "Got here 1" << std::endl;
 
   // Save the results
   std::string filename = "anderson";
@@ -102,6 +103,8 @@ TEST(CtHyb, Anderson) {
 #endif
   }
 
+  std::cout << "Got here 2" << std::endl;
+
   gf<imtime> g;
   if(rank==0){
     triqs::h5::file G_file(filename + ".ref.h5",'r');
@@ -115,6 +118,9 @@ TEST(CtHyb, Anderson) {
     EXPECT_GF_NEAR(g, solver.G_tau()[0]);
 #endif
   }
+
+  std::cout << "Got here 3" << std::endl;
+
 
 }
 MAKE_MAIN;
