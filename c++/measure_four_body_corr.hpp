@@ -51,7 +51,7 @@ struct measure_four_body_corr {
 //FIXME
  statistics::histogram_segment_bin binned_taus = {0, data.config.beta(), 100, "histo_binned_taus.dat"};
 
- measure_four_body_corr(qmc_data const& data, gf_view<imfreq, scalar_valued, no_tail> correlator, fundamental_operator_set const & fops, many_body_operator const & A, bool anticommute);
+ measure_four_body_corr(qmc_data const& data, gf_view<imfreq, scalar_valued> correlator, fundamental_operator_set const & fops, many_body_operator const & A, bool anticommute);
  void accumulate(mc_sign_type s);
  void collect_results(triqs::mpi::communicator const& c);
 

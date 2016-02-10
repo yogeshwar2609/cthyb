@@ -24,7 +24,7 @@
 
 namespace cthyb {
 
-measure_four_body_corr::measure_four_body_corr(qmc_data const& data, gf_view<imfreq, scalar_valued, no_tail> correlator,
+measure_four_body_corr::measure_four_body_corr(qmc_data const& data, gf_view<imfreq, scalar_valued> correlator,
                                                fundamental_operator_set const& fops, many_body_operator const& A, bool anticommute)
    : data(data), correlator(correlator), anticommute(anticommute), imp_tr(data.imp_trace), tree(data.imp_trace.tree) {
  z = 0;

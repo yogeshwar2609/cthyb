@@ -75,6 +75,10 @@ TEST(CtHyb, Anderson) {
   p.quantum_numbers = qn;
   p.partition_method = "quantum_numbers";
 #endif
+  p.measure_four_body_correlator = {n_up + n_down, false};
+//  p.measure_density_matrix = true;
+//  p.use_norm_as_weight = true;
+
 
   // Solve!
   solver.solve(p);

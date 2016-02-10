@@ -3,7 +3,7 @@
 from wrap_generator import *
 
 # The module
-module = module_(full_name = "pytriqs.applications.impurity_solvers.cthyb", doc = "The cthyb solver")
+module = module_(full_name = "pytriqs.applications.impurity_solvers.cthyb", doc = "The cthyb solver", app_name = "pytriqs.applications.impurity_solvers.cthyb")
 
 # All the triqs C++/Python modules
 module.use_module('gf', 'triqs')
@@ -31,36 +31,60 @@ using namespace cthyb;
 c = class_(
         py_type = "SolverCore",  # name of the python class
         c_type = "solver_core",   # name of the C++ class
+        doc = r"",   # doc of the C++ class
 )
 
 c.add_constructor("""(double beta, std::map<std::string,indices_type> gf_struct, int n_iw = 1025, int n_tau = 10001, int n_l = 50)""",
                   doc = """ """)
 
 c.add_method("""void solve (**cthyb::solve_parameters_t)""",
-             doc = """  Parameter Name               Type                            Default                                Documentation
-
-  h_int                        Operator                        --                                     Interacting part of the atomic Hamiltonian
-  n_cycles                     int                             --                                     Number of QMC cycles
-  partition_method             str                             "autopartition"                        Partition method
-  quantum_numbers              list(Operator)                  []                                     Quantum numbers
-  length_cycle                 int                             50                                     Length of a single QMC cycle
-  n_warmup_cycles              int                             5000                                   Number of cycles for thermalization
-  random_seed                  int                             34788 + 928374 * MPI.rank              Seed for random number generator
-  random_name                  str                             ""                                     Name of random number generator
-  max_time                     int                             -1 = infinite                          Maximum runtime in seconds, use -1 to set infinite
-  verbosity                    int                             3 on MPI rank 0, 0 otherwise.          Verbosity level
-  move_shift                   bool                            true                                   Add shifting a move as a move?
-  move_double                  bool                            false                                  Add double insertions as a move?
-  use_trace_estimator          bool                            false                                  Calculate the full trace or use an estimate?
-  measure_g_tau                bool                            true                                   Measure G(tau)?
-  measure_g_l                  bool                            false                                  Measure G_l (Legendre)?
-  measure_pert_order           bool                            false                                  Measure perturbation order?
-  measure_density_matrix       bool                            false                                  Measure the contribution of each atomic state to the trace?
-  use_norm_as_weight           bool                            false                                  Use the norm of the density matrix in the weight if true, otherwise use Trace
-  measure_four_body_correlator std::pair<many_body_op_t, bool> std::make_pair(many_body_op_t{},false) Measure four body correlator of given quadratic operator, noting whether c^+ and c anticommute.
-  measure_two_body_correlator  std::pair<many_body_op_t, bool> std::make_pair(many_body_op_t{},false) Measure two body correlator of given quadratic operator, noting whether c^+ and c anticommute.
-  performance_analysis         bool                            false                                  Analyse performance of trace computation with histograms (developers only)?
-  proposal_prob                dict(str:float)                 {}                                     Operator insertion/removal probabilities for different blocks                                    """)
+             doc = """+------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| Parameter Name               | Type                            | Default                                | Documentation                                                                                    |
++==============================+=================================+========================================+==================================================================================================+
+| h_int                        | Operator                        |                                        | Interacting part of the atomic Hamiltonian                                                       |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| n_cycles                     | int                             |                                        | Number of QMC cycles                                                                             |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| partition_method             | str                             | "autopartition"                        | Partition method                                                                                 |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| quantum_numbers              | list(Operator)                  | []                                     | Quantum numbers                                                                                  |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| length_cycle                 | int                             | 50                                     | Length of a single QMC cycle                                                                     |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| n_warmup_cycles              | int                             | 5000                                   | Number of cycles for thermalization                                                              |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| random_seed                  | int                             | 34788 + 928374 * MPI.rank              | Seed for random number generator                                                                 |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| random_name                  | str                             | ""                                     | Name of random number generator                                                                  |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| max_time                     | int                             | -1 = infinite                          | Maximum runtime in seconds, use -1 to set infinite                                               |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| verbosity                    | int                             | 3 on MPI rank 0, 0 otherwise.          | Verbosity level                                                                                  |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| move_shift                   | bool                            | true                                   | Add shifting a move as a move?                                                                   |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| move_double                  | bool                            | false                                  | Add double insertions as a move?                                                                 |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| use_trace_estimator          | bool                            | false                                  | Calculate the full trace or use an estimate?                                                     |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| measure_g_tau                | bool                            | true                                   | Measure G(tau)?                                                                                  |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| measure_g_l                  | bool                            | false                                  | Measure G_l (Legendre)?                                                                          |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| measure_pert_order           | bool                            | false                                  | Measure perturbation order?                                                                      |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| measure_density_matrix       | bool                            | false                                  | Measure the contribution of each atomic state to the trace?                                      |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| use_norm_as_weight           | bool                            | false                                  | Use the norm of the density matrix in the weight if true, otherwise use Trace                    |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| measure_four_body_correlator | std::pair<many_body_op_t, bool> | std::make_pair(many_body_op_t{},false) | Measure four body correlator of given quadratic operator, noting whether c^+ and c anticommute.  |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| measure_two_body_correlator  | std::pair<many_body_op_t, bool> | std::make_pair(many_body_op_t{},false) | Measure two body correlator of given quadratic operator, noting whether c^+ and c anticommute.   |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| performance_analysis         | bool                            | false                                  | Analyse performance of trace computation with histograms (developers only)?                      |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
+| proposal_prob                | dict(str:float)                 | {}                                     | Operator insertion/removal probabilities for different blocks                                    |
++------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+ """)
 
 c.add_property(name = "h_loc",
                getter = cfunction("many_body_op_t h_loc ()"),
@@ -95,7 +119,7 @@ c.add_property(name = "density_matrix",
                doc = """Density matrix """)
 
 c.add_property(name = "correlator",
-               getter = cfunction("gf_view<imtime,scalar_valued> correlator ()"),
+               getter = cfunction("gf_view<imfreq,scalar_valued> correlator ()"),
                doc = """Four body correlator """)
 
 c.add_property(name = "h_loc_diagonalization",
