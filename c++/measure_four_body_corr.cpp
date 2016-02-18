@@ -24,6 +24,8 @@
 
 namespace cthyb {
 
+static constexpr double threshold = 1.e-10;
+
 measure_four_body_corr::measure_four_body_corr(qmc_data const& data, gf_view<imfreq, scalar_valued> correlator,
                                                fundamental_operator_set const& fops, many_body_operator const& A, bool anticommute)
    : data(data), correlator(correlator), anticommute(anticommute), imp_tr(data.imp_trace), tree(data.imp_trace.tree) {
@@ -62,6 +64,8 @@ std::cout << coefficients << std::endl;
 
 void measure_four_body_corr::accumulate(mc_sign_type s) {
 
+std::cout << "GOT HERE 1" << std::endl;
+
 #ifdef DEBUG
  bool PRINT_DEBUG = false;
 #endif
@@ -76,6 +80,8 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
  auto tree_size = tree.size();
  if (tree_size < 4) return;
 
+std::cout << "GOT HERE 2" << std::endl;
+
  // Create a flat configuration from the tree in order of decreasing time (i.e. in order of tree, beta -> 0)
  // Also calculate the position of each operator in the appropriate determinant right away
  std::vector<node> flat_config;
@@ -88,12 +94,16 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
  });
  auto fc_size = flat_config.size();
 
+std::cout << "GOT HERE 3" << std::endl;
+
 #ifdef DEBUG
  // Check partial linear matrices match root cache matrix
  imp_tr.check_ML_MM_MR(PRINT_DEBUG);
 #endif
 
  auto blocks = imp_tr.get_nonstructurally_zero_blocks();
+
+std::cout << "GOT HERE 4" << std::endl;
 
  // Loop on the first pair of c^+, c, indexed 4,3
  // i+1 can go up to second to last config
@@ -120,21 +130,31 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
   // Does this pair contribute?
   if (std::abs(coefficients_one_pair(n4->op.linear_index, n3->op.linear_index)) < coef_threshold) continue;
 
+std::cout << "GOT HERE 5 -- FOUND MATHCING 2" << std::endl;
+std::cout << "i,i+1 = " << i << " " << i+1 << std::endl;
+std::cout << data.config << std::endl;
+
   // Find the second pair of c^+, c, indexed 2,1
   // j can go all the way to the rightmost operator and j+1 then loops to leftmost operator
   for (int j = i + 2; j < fc_size; ++j) {
 
-   if (i == (j + 1 % fc_size)) continue; // Otherwise have a clash of c_i = c_j+1!
+std::cout << "GOT HERE 5 -- j = " << j << std::endl;
+std::cout << "GOT HERE 5 -- fc_size = " << fc_size << std::endl;
+std::cout << "GOT HERE 5 -- j +1 mod = " << (j + 1) % fc_size << std::endl;
+   if (i == ((j + 1) % fc_size)) continue; // Otherwise have a clash of c_i = c_j+1!
+std::cout << "GOT HERE 5a" << std::endl;
    // n2, n1 are the two other operators
    auto n2 = flat_config[j];
-   auto n1 = flat_config[j + 1 % fc_size]; // Cycle around if necessary
+   auto n1 = flat_config[(j + 1) % fc_size]; // Cycle around if necessary
    if (anticommute) {
     if (n2->op.dagger == n1->op.dagger) continue;
    } else {
     if ((!n2->op.dagger) and (n1->op.dagger)) continue;
    }
+std::cout << "GOT HERE 5b" << std::endl;
    auto ind2 = op_index_in_det[j];
-   auto ind1 = op_index_in_det[j + 1 % fc_size];
+   auto ind1 = op_index_in_det[(j + 1) % fc_size];
+std::cout << "GOT HERE 5c" << std::endl;
 
    // Ensure that n2 is dagger, n1 not
    auto swapped21 = (n1->op.dagger);
@@ -142,10 +162,16 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
     std::swap(n2, n1);
     std::swap(ind2, ind1);
    }
+std::cout << "GOT HERE 5d" << std::endl;
 
    // Coefficient for the accumulation
    auto coef = coefficients(n4->op.linear_index, n3->op.linear_index, n2->op.linear_index, n1->op.linear_index);
    if (std::abs(coef) < coef_threshold) continue; // Do these 2 pairs contribute?
+
+std::cout << "GOT HERE 5 -- FOUND MATHCING 4" << std::endl;
+std::cout << "i,i+1 = " << i << " " << i+1 << std::endl;
+std::cout << "j,j+1 = " << j << " " << (j+1) % fc_size << std::endl;
+std::cout << data.config << std::endl;
 
    // Now measure!
 
@@ -164,6 +190,7 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
    if ((b4 == b3) && (b2 == b1)) MM1 = data.dets[b4].inverse_matrix(ind3, ind4) * data.dets[b3].inverse_matrix(ind1, ind2);
    if ((b4 == b1) && (b2 == b3)) MM2 = data.dets[b4].inverse_matrix(ind1, ind4) * data.dets[b3].inverse_matrix(ind3, ind2);
 
+std::cout << "GOT HERE 6" << std::endl;
    // --- Trace and the tree ---
 
 #ifdef DEBUG
@@ -171,8 +198,10 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
    imp_tr.check_trace_from_ML_MM_MR(flat_config, i, j, PRINT_DEBUG); // FIXME -- generalise for cyclic trace
 #endif
 
+std::cout << "before compute_sliding_trace_integral" << std::endl;
    // Compute the trace and normalisation integral, and accumulate into the correlator for all frequencies
    compute_sliding_trace_integral(flat_config, i, j, blocks, correlator_accum);
+std::cout << "after compute_sliding_trace_integral" << std::endl;
 
    // --- Accumulate ---
 
@@ -204,7 +233,7 @@ template <int N, typename T> T pow(T x) { return pow(x, std::integral_constant<i
 
 template <int N, typename A> void unique_with_multiplicity(A& a) {
  for (int r = 0; r < N - 1; ++r) {
-  if (std::abs(a[r + 1].first - a[r].first) < 1.e-10) {
+  if (std::abs(a[r + 1].first - a[r].first) < threshold) {
    a[r + 1].second += a[r].second;
    a[r].second = 0;
   }
@@ -215,19 +244,19 @@ template <int N, typename A> void unique_with_multiplicity(A& a) {
 
 //template<typename T>
 //T compute_evolution_integral(T lamb1, T lamb2) {
-// return ((std::abs(lamb1 - lamb2) > 1.e-10) ? (std::exp(lamb1) - std::exp(lamb2)) / (lamb2 - lamb1) : -std::exp(lamb1));
-//// return ((std::abs(lamb1 - lamb2) > 1.e-10) ? (std::exp(-dtau * lamb1) - std::exp(-dtau * lamb2)) / (lamb2 - lamb1)
+// return ((std::abs(lamb1 - lamb2) > threshold) ? (std::exp(lamb1) - std::exp(lamb2)) / (lamb2 - lamb1) : -std::exp(lamb1));
+//// return ((std::abs(lamb1 - lamb2) > threshold) ? (std::exp(-dtau * lamb1) - std::exp(-dtau * lamb2)) / (lamb2 - lamb1)
 ////                                                  : std::exp(-dtau * lamb1) * dtau);
 //}
 
 double compute_evolution_integral(double lamb1, double lamb2) {
- return ((std::abs(lamb1 - lamb2) > 1.e-10) ? (std::exp(lamb1) - std::exp(lamb2)) / (lamb2 - lamb1) : -std::exp(lamb1));
+ return ((std::abs(lamb1 - lamb2) > threshold) ? (std::exp(lamb1) - std::exp(lamb2)) / (lamb2 - lamb1) : -std::exp(lamb1));
 }
 dcomplex compute_evolution_integral(dcomplex lamb1, double lamb2) {
- return ((std::abs(lamb1 - lamb2) > 1.e-10) ? (std::exp(lamb1) - std::exp(lamb2)) / (lamb2 - lamb1) : -std::exp(lamb1));
+ return ((std::abs(lamb1 - lamb2) > threshold) ? (std::exp(lamb1) - std::exp(lamb2)) / (lamb2 - lamb1) : -std::exp(lamb1));
 }
 dcomplex compute_evolution_integral(double lamb1, dcomplex lamb2) {
- return ((std::abs(lamb1 - lamb2) > 1.e-10) ? (std::exp(lamb1) - std::exp(lamb2)) / (lamb2 - lamb1) : -std::exp(lamb1));
+ return ((std::abs(lamb1 - lamb2) > threshold) ? (std::exp(lamb1) - std::exp(lamb2)) / (lamb2 - lamb1) : -std::exp(lamb1));
 }
 
 // --------------------
@@ -241,9 +270,9 @@ T compute_evolution_integral(T lamb1, double lamb2, T lamb3) {
  auto el3 = std::exp(lamb3);
  auto l12 = lamb1 - lamb2, l13 = lamb1 - lamb3;
  auto l23 = lamb2 - lamb3;
- bool bl12 = (std::abs(l12) < 1.e-10);
- bool bl13 = (std::abs(l13) < 1.e-10);
- bool bl23 = (std::abs(l23) < 1.e-10);
+ bool bl12 = (std::abs(l12) < threshold);
+ bool bl13 = (std::abs(l13) < threshold);
+ bool bl23 = (std::abs(l23) < threshold);
 
  if (bl12) {
   if (bl13)
@@ -451,6 +480,7 @@ block_and_matrix measure_four_body_corr::compute_normalization_integral(int b_i,
 void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> const& flat_config, int index_node_l,
                                                             int index_node_r, std::vector<int> const& blocks,
                                                             gf<imfreq, scalar_valued, no_tail> & correlator_accum) {
+std::cout << "sliding 1" << std::endl;
   // Configuration
   //   /------ M_outer(tr1,tl2) ---------------------------------------------\
   //   |                           M_inner(tl1,tr2)                          |
@@ -466,18 +496,40 @@ void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> co
  auto node_r2 = flat_config[index_node_r];
  auto node_l1 = flat_config[index_node_l + 1];
  auto node_l2 = flat_config[index_node_l];
- auto tau_r1 = node_r1->key;
- auto tau_r2 = node_r2->key;
- auto tau_l1 = node_l1->key;
- auto tau_l2 = node_l2->key;
+std::cout << "sliding 2" << std::endl;
+// auto tau_r1 = node_r1->key;
+// auto tau_r2 = node_r2->key;
+// auto tau_l1 = node_l1->key;
+// auto tau_l2 = node_l2->key;
+std::cout << (*flat_config[index_node_r + 1]).key<< std::endl;
+std::cout << (*flat_config[index_node_r]    ).key<< std::endl;
+std::cout << (*flat_config[index_node_l + 1]).key<< std::endl;
+std::cout << (*flat_config[index_node_l]    ).key<< std::endl;
+
+ auto tau_r1 = flat_config[index_node_r + 1]->key;
+ auto tau_r2 = flat_config[index_node_r]->key;
+ auto tau_l1 = flat_config[index_node_l + 1]->key;
+ auto tau_l2 = flat_config[index_node_l]->key;
+std::cout << " tau_r1 = " << tau_r1 << std::endl;
+std::cout << " tau_r2 = " << tau_r2 << std::endl;
+std::cout << " tau_l1 = " << tau_l1 << std::endl;
+std::cout << " tau_l2 = " << tau_l2 << std::endl;
+std::cout << "sliding 3" << std::endl;
  auto tau1 = flat_config[index_node_r + 2]->key;
  auto tau2 = flat_config[index_node_r - 1]->key;
  auto tau3 = flat_config[index_node_l + 2]->key;
  auto tau4 = flat_config[index_node_l - 1]->key;
+std::cout << " tau1 = " << tau1 << std::endl;
+std::cout << " tau2 = " << tau2 << std::endl;
+std::cout << " tau3 = " << tau3 << std::endl;
+std::cout << " tau4 = " << tau4 << std::endl;
+std::cout << "sliding 4" << std::endl;
  auto is_4op = (index_node_l + 2 == index_node_r);
+std::cout << " is_4op = " << is_4op << std::endl;
  auto root = tree.get_root();
  trace_t sliding_trace = 0, int_trace = 0;
  correlator_accum() = 0.;
+std::cout << "sliding 5" << std::endl;
 
  for (auto bl : blocks) {
 
@@ -520,7 +572,7 @@ void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> co
  // Normalise trace
  //auto correlator_accum = correlator_accum / int_trace;
 // if (!std::isfinite(tr_over_int)) {
-//  if ((sliding_trace < 1.e-20) and (int_trace < 1.e-20)) continue; // FIXME what thresholds to use for 0/0 check?
+//  if ((sliding_trace < threshold) and (int_trace < threshold)) continue; // FIXME what thresholds to use for 0/0 check?
 //  TRIQS_RUNTIME_ERROR << "tr_over_int not finite " << sliding_trace << " " << int_trace;
 // }
 }
