@@ -79,8 +79,6 @@ c.add_method("""void solve (**cthyb::solve_parameters_t)""",
 +------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
 | measure_four_body_correlator | std::pair<many_body_op_t, bool> | std::make_pair(many_body_op_t{},false) | Measure four body correlator of given quadratic operator, noting whether c^+ and c anticommute.  |
 +------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
-| measure_two_body_correlator  | std::pair<many_body_op_t, bool> | std::make_pair(many_body_op_t{},false) | Measure two body correlator of given quadratic operator, noting whether c^+ and c anticommute.   |
-+------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
 | performance_analysis         | bool                            | false                                  | Analyse performance of trace computation with histograms (developers only)?                      |
 +------------------------------+---------------------------------+----------------------------------------+--------------------------------------------------------------------------------------------------+
 | proposal_prob                | dict(str:float)                 | {}                                     | Operator insertion/removal probabilities for different blocks                                    |
