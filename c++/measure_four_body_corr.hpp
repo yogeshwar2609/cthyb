@@ -45,13 +45,14 @@ struct measure_four_body_corr {
  arrays::array<dcomplex, 4> coefficients;          // Coefficients of op*op, where op is a quadratic operator
  arrays::array<dcomplex, 2> coefficients_one_pair; // Max abs coefficient of op
  bool anticommute;                                 // Do the cdag and c operators anticommute?
- impurity_trace & imp_tr;
+ impurity_trace& imp_tr;
  impurity_trace::rb_tree_t const& tree;
 
-//FIXME
+ // FIXME
  statistics::histogram_segment_bin binned_taus = {0, data.config.beta(), 100, "histo_binned_taus.dat"};
 
- measure_four_body_corr(qmc_data const& data, gf_view<imfreq, scalar_valued> correlator, fundamental_operator_set const & fops, many_body_operator const & A, bool anticommute);
+ measure_four_body_corr(qmc_data const& data, gf_view<imfreq, scalar_valued> correlator, fundamental_operator_set const& fops,
+                        many_body_operator const& A, bool anticommute);
  void accumulate(mc_sign_type s);
  void collect_results(triqs::mpi::communicator const& c);
 
@@ -61,9 +62,10 @@ struct measure_four_body_corr {
                                                  op_desc const& op3, op_desc const& op4);
  void compute_sliding_trace_integral(std::vector<node> const& flat_config, int index_node_l, int index_node_r,
                                      std::vector<int> const& blocks, gf<imfreq, scalar_valued, no_tail>& correlator_accum);
- dcomplex compute_fourier_sliding_trace(int b_i, bool is_4op, time_pt tau1, time_pt tau2, time_pt tau3, time_pt tau4,
+ dcomplex compute_fourier_sliding_trace(int case_num, int b_i, time_pt tau1, time_pt tau2, time_pt tau3, time_pt tau4,
                                         op_desc const& op1, op_desc const& op2, op_desc const& op3, op_desc const& op4,
-                                        block_and_matrix const& M_inner, block_and_matrix const& M_outer, matsubara_freq iwn_) const;
+                                        block_and_matrix const& M_inner, block_and_matrix const& M_outer,
+                                        matsubara_freq iwn_) const;
  TRIQS_CLEF_IMPLEMENT_LAZY_METHOD(measure_four_body_corr, compute_fourier_sliding_trace);
 };
 }
