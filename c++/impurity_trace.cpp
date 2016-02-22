@@ -435,8 +435,7 @@ std::pair<double, impurity_trace::trace_t> impurity_trace::compute(double p_yee,
  // else determine reweighting
  auto rw = full_trace / norm_trace;
  if (!std::isfinite(rw)) rw = 1;
- // FIXME if (!std::isfinite(rw)) TRIQS_RUNTIME_ERROR << "Atomic correlators : reweight not finite" << full_trace << " "<<
- // norm_trace;
+ // FIXME if (!std::isfinite(rw)) TRIQS_RUNTIME_ERROR << "Atomic correlators : reweight not finite" << full_trace << " "<< norm_trace;
  return {norm_trace, rw};
 }
 

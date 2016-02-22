@@ -79,7 +79,7 @@ solver_core::solver_core(double beta_, std::map<std::string, indices_type> const
   _Delta_tau = make_block_gf(block_names, delta_tau_blocks);
   _G_tau_real = make_block_gf(block_names, g_tau_real_blocks);
 
-  _correlator = gf<imfreq, scalar_valued>{{beta, Boson, n_iw}};
+  _correlator = gf<imfreq, scalar_valued>{{beta, Boson, 32}}; //FIXME remove hardcoded n_iw
 }
 
 /// -------------------------------------------------------------------------------------------

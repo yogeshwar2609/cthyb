@@ -73,6 +73,7 @@ namespace triqs { namespace utility {
   // beta and 0 special time points
   friend time_pt make_time_pt_beta(double beta);
   friend time_pt make_time_pt_zero(double beta);
+  friend time_pt make_time_pt_epsilon(double beta);
 
   // unary
   inline friend time_pt operator-(time_pt const & a) { return time_pt(Nmax-a.n, a.beta,true); }
@@ -139,6 +140,7 @@ namespace triqs { namespace utility {
  // beta and 0 special time points
  inline time_pt make_time_pt_beta(double beta) { return time_pt(time_pt::Nmax, beta, true); }
  inline time_pt make_time_pt_zero(double beta) { return time_pt(0, beta, true); }
+ inline time_pt make_time_pt_epsilon(double beta) { return time_pt(1, beta, true); }
 
 }}
 

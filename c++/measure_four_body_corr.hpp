@@ -21,7 +21,6 @@
 #pragma once
 #include <triqs/gfs.hpp>
 #include <triqs/clef.hpp>
-#include "triqs/statistics/histograms.hpp" //FIXME
 #include "./qmc_data.hpp"
 #include "./impurity_trace.hpp"
 
@@ -47,9 +46,6 @@ struct measure_four_body_corr {
  bool anticommute;                                 // Do the cdag and c operators anticommute?
  impurity_trace& imp_tr;
  impurity_trace::rb_tree_t const& tree;
-
- // FIXME
- statistics::histogram_segment_bin binned_taus = {0, data.config.beta(), 100, "histo_binned_taus.dat"};
 
  measure_four_body_corr(qmc_data const& data, gf_view<imfreq, scalar_valued> correlator, fundamental_operator_set const& fops,
                         many_body_operator const& A, bool anticommute);

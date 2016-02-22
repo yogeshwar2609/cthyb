@@ -20,7 +20,7 @@
  ******************************************************************************/
 #include "./measure_four_body_corr.hpp"
 
-//#define DEBUG
+#define DEBUG
 
 namespace cthyb {
 
@@ -34,7 +34,7 @@ measure_four_body_corr::measure_four_body_corr(qmc_data const& data, gf_view<imf
      anticommute(anticommute),
      imp_tr(data.imp_trace),
      tree(data.imp_trace.tree),
-     correlator_accum({{data.config.beta(), Boson, 1025}}) { //FIXME remove hardcoded n_iw
+     correlator_accum({{data.config.beta(), Boson, 32}}) { //FIXME remove hardcoded n_iw
  z = 0;
  correlator() = 0.0;
 
@@ -70,10 +70,6 @@ std::cout << coefficients << std::endl;
 
 void measure_four_body_corr::accumulate(mc_sign_type s) {
 
-//std::cout << std::endl;
-//std::cout << "------------------- NEW CONFIG -------------------" << std::endl;
-//std::cout << data.config << std::endl;
-
 #ifdef DEBUG
  bool PRINT_DEBUG = false;
 #endif
@@ -108,19 +104,18 @@ void measure_four_body_corr::accumulate(mc_sign_type s) {
  auto blocks = imp_tr.get_nonstructurally_zero_blocks();
 
  // DEBUG
-imp_tr.compute();
-std::sort(imp_tr.contributing_blocks.begin(),imp_tr.contributing_blocks.end());
-std::sort(blocks.begin(),blocks.end());
-auto blocks_same = (imp_tr.contributing_blocks == blocks);
-//std::cout << "are blocks same? " << blocks_same << std::endl;
-if (!blocks_same) {
-std::cout << "blocks contributing ";
-for (auto block : imp_tr.contributing_blocks) std::cout << block << " ";
-std::cout << std::endl;
-std::cout << "blocks non-structurally zero ";
-for (auto block : blocks) std::cout << block << " ";
-std::cout << std::endl;
-}
+ imp_tr.compute();
+ std::sort(imp_tr.contributing_blocks.begin(), imp_tr.contributing_blocks.end());
+ std::sort(blocks.begin(), blocks.end());
+ auto blocks_same = (imp_tr.contributing_blocks == blocks);
+ if (!blocks_same) {
+  std::cout << "blocks contributing ";
+  for (auto block : imp_tr.contributing_blocks) std::cout << block << " ";
+  std::cout << std::endl;
+  std::cout << "blocks non-structurally zero ";
+  for (auto block : blocks) std::cout << block << " ";
+  std::cout << std::endl;
+ }
 
  // Loop on the first pair of c^+, c, indexed 4,3
  // i+1 can go up to second to last config
@@ -146,9 +141,6 @@ std::cout << std::endl;
 
   // Does this pair contribute?
   if (std::abs(coefficients_one_pair(n4->op.linear_index, n3->op.linear_index)) < coef_threshold) continue;
-
-//std::cout << "GOT HERE -- FOUND MATCHING 2" << std::endl;
-//std::cout << "i,i+1 = " << i << " " << i+1 << std::endl;
 
   // Find the second pair of c^+, c, indexed 2,1
   // j can go all the way to the rightmost operator and j+1 then loops to leftmost operator
@@ -176,10 +168,6 @@ std::cout << std::endl;
    auto coef = coefficients(n4->op.linear_index, n3->op.linear_index, n2->op.linear_index, n1->op.linear_index);
    if (std::abs(coef) < coef_threshold) continue; // Do these 2 pairs contribute?
 
-//std::cout << "GOT HERE -- FOUND MATCHING 4" << std::endl;
-//std::cout << "i,i+1 = " << i << " " << i+1 << std::endl;
-//std::cout << "j,j+1 = " << j << " " << (j+1) % fc_size << std::endl;
-
    // Now measure!
 
    // --- Det ---
@@ -201,13 +189,12 @@ std::cout << std::endl;
 
 #ifdef DEBUG
    // DEBUG Check that the trace is correct
-   imp_tr.check_trace_from_ML_MM_MR(flat_config, i, j, PRINT_DEBUG); // FIXME -- generalise for cyclic trace
+   imp_tr.check_trace_from_ML_MM_MR(flat_config, i, j, PRINT_DEBUG);
+   imp_tr.check_trace_from_MM(flat_config, i, j, PRINT_DEBUG);
 #endif
 
-//std::cout << "before compute_sliding_trace_integral" << std::endl;
    // Compute the trace and normalisation integral, and accumulate into the correlator for all frequencies
    compute_sliding_trace_integral(flat_config, i, j, blocks, correlator_accum);
-//std::cout << "after compute_sliding_trace_integral" << std::endl;
 
    // --- Accumulate ---
 
@@ -290,18 +277,6 @@ T compute_evolution_integral(T lamb1, double lamb2, T lamb3) {
  } else { // ((!bl12) and (!bl13) and (!bl23))
   return ((el1 - el2) / l12 + (-el1 + el3) / l13) / l23;
  }
-
-// // Find the largest multiplicity to uniquely identify the case
-// auto max_mult = lambda_and_mult[0].second;
-// switch (max_mult) {
-//  case (1): // 111
-//   return ((el1 - el2) / l12 + (-el1 + el3) / l13) / l23;
-//  case (2): // 210
-//   return (-el1 + el2) / pow<2>(l12) + el1 / l12;
-//  case (3): // 300
-//   return el1 / 2.;
-// }
-// TRIQS_RUNTIME_ERROR << "compute_evolution_integral (2 op): did not match any of the cases.";
 }
 
 // --------------------
@@ -327,15 +302,15 @@ double compute_evolution_integral(double lamb1, double lamb2, double lamb3, doub
  auto l3 = lambda_and_mult[2].first;
  auto l4 = lambda_and_mult[3].first;
  auto l5 = lambda_and_mult[4].first;
+ auto l12 = l1 - l2, l13 = l1 - l3, l14 = l1 - l4, l15 = l1 - l5;
+ auto l23 = l2 - l3, l24 = l2 - l4, l25 = l2 - l5;
+ auto l34 = l3 - l4, l35 = l3 - l5;
+ auto l45 = l4 - l5;
  auto el1 = std::exp(l1);
  auto el2 = std::exp(l2);
  auto el3 = std::exp(l3);
  auto el4 = std::exp(l4);
  auto el5 = std::exp(l5);
- auto l12 = l1 - l2, l13 = l1 - l3, l14 = l1 - l4, l15 = l1 - l5;
- auto l23 = l2 - l3, l24 = l2 - l4, l25 = l2 - l5;
- auto l34 = l3 - l4, l35 = l3 - l5;
- auto l45 = l4 - l5;
 
  // Find the first two (largest) multiplicities to uniquely identify the case
  auto max_mult_1 = lambda_and_mult[0].second;
@@ -498,7 +473,7 @@ void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> co
  // Preconditions: chosen operator with index_node is always first of a pair, with index 2,
  // i.e. there is at least one operator to the right of op(index_node)
  auto fc_size = flat_config.size();
- auto cyclic_index = [&](int index) { return index % fc_size; };
+ auto cyclic_index = [&](int index) { return (index >= 0) ? index % fc_size : (index + fc_size) % fc_size; };
  auto node_r1 = flat_config[cyclic_index(index_node_r + 1)];
  auto node_r2 = flat_config[cyclic_index(index_node_r)];
  auto node_l1 = flat_config[cyclic_index(index_node_l + 1)];
@@ -514,23 +489,12 @@ void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> co
  auto is_4op = (cyclic_index(index_node_l + 2) == cyclic_index(index_node_r));
  auto M_inner_empty = (cyclic_index(index_node_l + 2) == cyclic_index(index_node_r));
  auto M_outer_empty = (cyclic_index(index_node_r + 2) == cyclic_index(index_node_l));
-//std::cout << "M_inner_empty = " << M_inner_empty << std::endl;
-//std::cout << "M_outer_empty = " << M_outer_empty << std::endl;
  auto root = tree.get_root();
  trace_t int_trace = 0;
  correlator_accum() = 0.;
  placeholder<0> iwn_;
 
  for (auto bl : blocks) {
-
-// DEBUG
- auto bl2 = bl;
- for (int i = fc_size - 1; i >= 0; --i) {
-//  std::cout << i << " " << bl2 << " " << std::endl;
-  bl2 = imp_tr.get_op_block_map(flat_config[i]->op, bl2);
- }
-//  std::cout << "end" <<  bl2 << " " << std::endl;
-  if (bl2!=bl) TRIQS_RUNTIME_ERROR << "blocks dont match up";
 
   imp_tr.compute_matrix(root, bl); // Update matrices without the Yee quick exit
 
@@ -564,13 +528,10 @@ void measure_four_body_corr::compute_sliding_trace_integral(std::vector<node> co
   block_and_matrix M_inner = {-1, {}};
   block_and_matrix M_outer = {-1, {}};
   block_and_matrix int_mat;
-//DEBUG
-auto b1temp = imp_tr.compute_block_at_tau(root, tau_r1, bl);
-auto temp2 = imp_tr.compute_M_R(root, tau_r1, bl);
-if (b1temp != temp2.b) TRIQS_RUNTIME_ERROR << "sliding temp1 " << b1temp << "temp2 " << temp2.b;
+
+// FIXME for real gfs, only need to treat positive freq
 
   if ((!M_outer_empty) and (!M_inner_empty)) { // case 1
-//std::cout << "in case 1" << std::endl;
 
    auto b1 = imp_tr.compute_block_at_tau(root, tau_r1, bl);
    auto int_r = compute_normalization_integral(b1, tau1, tau2, node_r1->op, node_r2->op);
@@ -581,12 +542,11 @@ if (b1temp != temp2.b) TRIQS_RUNTIME_ERROR << "sliding temp1 " << b1temp << "tem
    if (M_outer.b != b1) TRIQS_RUNTIME_ERROR << "compute_sliding_trace_integral: case 1: start and end blocks do not match.";
    int_trace += trace((M_outer * int_mat).M);
 
-  correlator_accum(iwn_) << correlator_accum(iwn_) + compute_fourier_sliding_trace(1, b1, tau1, tau2, tau3, tau4,
-                                                                                   node_r1->op, node_r2->op, node_l1->op,
-                                                                                   node_l2->op, M_inner, M_outer, iwn_);
+   correlator_accum(iwn_) << correlator_accum(iwn_) + compute_fourier_sliding_trace(1, b1, tau1, tau2, tau3, tau4, node_r1->op,
+                                                                                    node_r2->op, node_l1->op, node_l2->op,
+                                                                                    M_inner, M_outer, iwn_);
 
   } else if ((!M_outer_empty) and M_inner_empty) { // case 2
-//std::cout << "in case 2" << std::endl;
 
    auto b1 = imp_tr.compute_block_at_tau(root, tau_r1, bl);
    int_mat = compute_normalization_integral(b1, tau1, tau4, node_r1->op, node_r2->op, node_l1->op, node_l2->op);
@@ -594,12 +554,11 @@ if (b1temp != temp2.b) TRIQS_RUNTIME_ERROR << "sliding temp1 " << b1temp << "tem
    if (M_outer.b != b1) TRIQS_RUNTIME_ERROR << "compute_sliding_trace_integral: case 2: start and end blocks do not match.";
    int_trace += trace((M_outer * int_mat).M);
 
-  correlator_accum(iwn_) << correlator_accum(iwn_) + compute_fourier_sliding_trace(2, b1, tau1, tau2, tau3, tau4,
-                                                                                   node_r1->op, node_r2->op, node_l1->op,
-                                                                                   node_l2->op, M_inner, M_outer, iwn_);
+   correlator_accum(iwn_) << correlator_accum(iwn_) + compute_fourier_sliding_trace(2, b1, tau1, tau2, tau3, tau4, node_r1->op,
+                                                                                    node_r2->op, node_l1->op, node_l2->op,
+                                                                                    M_inner, M_outer, iwn_);
 
   } else if (M_outer_empty and (!M_inner_empty)) { // case 3 // FIXME need to check how looping here works in compute_...
-//std::cout << "in case 3" << std::endl;
 
    auto b4 = imp_tr.compute_block_at_tau(root, tau_l1, bl);
    int_mat = compute_normalization_integral(b4, tau3, tau2, node_l1->op, node_l2->op, node_r1->op, node_r2->op);
@@ -612,59 +571,29 @@ if (b1temp != temp2.b) TRIQS_RUNTIME_ERROR << "sliding temp1 " << b1temp << "tem
                                                                                     M_outer, M_inner, iwn_);
 
   } else { // case 4 == (M_inner_empty and M_outer_empty)
-//std::cout << "in case 4" << std::endl;
 
    auto b1 = imp_tr.compute_block_at_tau(root, tau_r1, bl);
-   int_mat = compute_normalization_integral(b1, tau_r1, tau_r1 + imp_tr._beta, node_r1->op, node_r2->op, node_l1->op, node_l2->op);
+   int_mat =
+       compute_normalization_integral(b1, tau_r1, tau_r1 - imp_tr._epsilon, node_r1->op, node_r2->op, node_l1->op, node_l2->op);
    if (int_mat.b != b1) TRIQS_RUNTIME_ERROR << "compute_sliding_trace_integral: case 4: start and end blocks do not match.";
    int_trace += trace(int_mat.M);
 
-  correlator_accum(iwn_) << correlator_accum(iwn_) + compute_fourier_sliding_trace(4, b1, tau1, tau2, tau3, tau4,
-                                                                                   node_r1->op, node_r2->op, node_l1->op,
-                                                                                   node_l2->op, M_inner, M_outer, iwn_);
-
+   correlator_accum(iwn_) << correlator_accum(iwn_) + compute_fourier_sliding_trace(4, b1, tau1, tau2, tau3, tau4, node_r1->op,
+                                                                                    node_r2->op, node_l1->op, node_l2->op,
+                                                                                    M_inner, M_outer, iwn_);
   }
-
-//std::cout << "sliding HERE 2" << std::endl;
-//  if (!is_4op) { // 2 x 2-operator integrals
-//   auto int_r = compute_normalization_integral(b1, tau1, tau2, node_r1->op, node_r2->op);
-//   M_inner = imp_tr.compute_M_M(root, tau_l1, tau_r2, int_r.b);
-//   auto int_l = compute_normalization_integral(M_inner.b, tau3, tau4, node_l1->op, node_l2->op);
-//   int_mat = int_l * (M_inner * int_r);
-//  } else { // 1 x 4-operator integral
-//   int_mat = compute_normalization_integral(b1, tau1, tau4, node_r1->op, node_r2->op, node_l1->op, node_l2->op);
-//  }
-//std::cout << "sliding HERE 3" << std::endl;
-//  auto M_outer = imp_tr.compute_M_M(root, tau_r1, tau_l2, int_mat.b);
-//  if (M_outer.b != b1) TRIQS_RUNTIME_ERROR << " compute_sliding_trace_integral: start and end blocks do not match.";
-//  int_trace += trace((M_outer * int_mat).M);
-
-//std::cout << "M_inner.M         " << M_inner.M           << std::endl;
-//std::cout << "M_outer.M         " << M_outer.M           << std::endl;
-//
-//std::cout << "sliding HERE 4" << std::endl;
-  // Matrix with c_dag,c operators stuck together: tau_l2==tau_l1
-  // mat = M_outer(tr1,tl2) * evo_tl^t4 * op(l2) op(l1) * evo_t3^tl * M_inner(tl1,tr2) * evo_tr^t2 * op(r2) op(r1) * evo_t1^tr
-
-  // FIXME auto iwn = [&](int n) { return dcomplex(0, 1) * (2 * n + 1) * 3.14 / data.config.beta(); };
-  // auto iwn = [&](int n) { return (2 * n + 1) * 3.14 / data.config.beta(); };
-  //  for (auto const& n : correlator_accum.mesh())
-  //   correlator_accum[n] = compute_fourier_sliding_trace(bl, is_4op, tau1, tau2, tau3, tau4, node_r1->op, node_r2->op,
-  //   node_l1->op,
-  //                                                       node_l2->op, M_inner, M_outer, iwn);
-
-  //  placeholder<0> iwn_;
-  //  correlator_accum(iwn_) << correlator_accum(iwn_) + compute_fourier_sliding_trace(b1, is_4op, tau1, tau2, tau3, tau4,
-  //                                                                                   node_r1->op, node_r2->op, node_l1->op,
-  //                                                                                   node_l2->op, M_inner, M_outer, iwn_);
  } // end loop over blocks
 
- //Normalise trace
- correlator_accum(iwn_) << correlator_accum(iwn_) / int_trace;
-// if (!std::isfinite(tr_over_int)) {
-//  if ((sliding_trace < threshold) and (int_trace < threshold)) continue; // FIXME what thresholds to use for 0/0 check?
-//  TRIQS_RUNTIME_ERROR << "tr_over_int not finite " << sliding_trace << " " << int_trace;
-// }
+ // Normalise trace
+ for (auto const& iw : correlator_accum.mesh()) {
+  auto norm_trace = correlator_accum[iw] / int_trace;
+  if (!std::isfinite(abs(norm_trace))) { // FIXME what thresholds to use for 0/0 check?
+   if ((abs(correlator_accum[iw]) < threshold) and (abs(int_trace) < threshold)) norm_trace = 0.0; // FIXME correct?
+   TRIQS_RUNTIME_ERROR << "normalised trace is not finite " << correlator_accum[iw] << " " << int_trace;
+  }
+  correlator_accum[iw] = norm_trace;
+ }
+
 }
 
 dcomplex measure_four_body_corr::compute_fourier_sliding_trace(int case_num, int b_i, time_pt tau1, time_pt tau2, time_pt tau3,
@@ -673,34 +602,26 @@ dcomplex measure_four_body_corr::compute_fourier_sliding_trace(int case_num, int
                                                                block_and_matrix const& M_inner, block_and_matrix const& M_outer,
                                                                matsubara_freq iwn_) const {
  // Configuration
- //   /------ M_outer(tr1,tl2) ---------------------------------------------\
-  //   |                           M_inner(tl1,tr2)                          |
- //   \--------->                 <----------->                 <-----------/
- //    | ------ | --- x --- x --- | --------- | --- x --- x --- | ----------|
- // beta              l2    l1                      r2    r1                0
- //             t4                t3          t2                t1
- //   bl=b7        b6    b5    b4                b3    b2    b1             bl
+ //                      M_inner(tl1,tr2)
+ //                       <----------->
+ //     | --- x --- x --- | --------- | --- x --- x --- |
+ //           l2    l1                      r2    r1
+ //     t4                t3          t2                t1
+ // bl=b7 b6    b5    b4                b3    b2    b1
 
  // In case 3 above, M_inner and M_outer are swapped, and b1 is actually b4
 
  auto b1 = b_i;
-//std::cout << "b1 = " << b1 << std::endl;
  auto M1 = imp_tr.get_op_block_matrix(op1, b1);
  auto b2 = imp_tr.get_op_block_map(op1, b1);
-//std::cout << "b2 = " << b2 << std::endl;
  auto M2 = imp_tr.get_op_block_matrix(op2, b2);
  auto b3 = imp_tr.get_op_block_map(op2, b2);
-//std::cout << "b3 = " << b3 << std::endl;
  auto b4 = M_inner.M.is_empty() ? b3 : M_inner.b;
-//std::cout << "b4 = " << b4 << std::endl;
  auto M3 = imp_tr.get_op_block_matrix(op3, b4);
  auto b5 = imp_tr.get_op_block_map(op3, b4);
-//std::cout << "b5 = " << b5 << std::endl;
  auto M4 = imp_tr.get_op_block_matrix(op4, b5);
  auto b6 = imp_tr.get_op_block_map(op4, b5);
-//std::cout << "b6 = " << b6 << std::endl;
  auto b_f = b6;
-//std::cout << "bf = " << b_f << std::endl;
  auto dim1 = imp_tr.get_block_dim(b1);
  auto dim2 = imp_tr.get_block_dim(b2);
  auto dim3 = imp_tr.get_block_dim(b3);
@@ -813,4 +734,3 @@ dcomplex measure_four_body_corr::compute_fourier_sliding_trace(int case_num, int
  //                                 imp_tr.get_block_eigenval(b4, i4_) * dtau, (imp_tr.get_block_eigenval(b6, i6_) + iwn_) *
  //                                 dtau);
  // }
-

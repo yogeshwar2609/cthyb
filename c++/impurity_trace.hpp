@@ -31,6 +31,7 @@ using triqs::utility::rb_tree;
 using triqs::utility::rbt_insert_error;
 using triqs::utility::make_time_pt_beta;
 using triqs::utility::make_time_pt_zero;
+using triqs::utility::make_time_pt_epsilon;
 
 namespace cthyb {
 
@@ -172,7 +173,7 @@ class impurity_trace {
  std::pair<op_desc, const atom_diag*> get_op(node n) const { return {n->op, h_diag}; }
 
  // Recursive function for tree traversal
- public: //FIXME
+ public:
  int compute_block_table(node n, int b) const;
  std::pair<int, double> compute_block_table_and_bound(node n, int b, double bound_threshold, bool use_threshold = true);
  block_and_matrix compute_matrix(node n, int b);
@@ -206,6 +207,9 @@ class impurity_trace {
  void check_ML_MM_MR(bool print = false);
  void check_trace_from_ML_MR(std::vector<node> const& flat_config, int index_node, bool print = false);
  void check_trace_from_ML_MM_MR(std::vector<node> const& flat_config, int index_node_l, int index_node_r, bool print = false);
+ void check_trace_from_MM(std::vector<node> const& flat_config, int index_node_l, int index_node_r, bool print = false);
+
+ // ---------------- Linear products machinery ----------------
 
  /*************************************************************************
   *  Calculate linear matrix products from tree caches from tau_L to tau_R
@@ -222,6 +226,14 @@ class impurity_trace {
                    tau_L                            tau_R                  0
     |   <--M_L-->              <----- M_M ----->              <-- M_R -->  |
   *************************************************************************/
+
+ time_pt _beta = make_time_pt_beta(config->beta());
+ time_pt _zero = make_time_pt_zero(config->beta());
+ time_pt _epsilon = make_time_pt_epsilon(config->beta());
+
+ // min/max of left/right subtrees. Precondition: n->left/n->right is not null
+ time_pt tau_maxL(node n) const { return tree.max_key(n->left); }
+ time_pt tau_minR(node n) const { return tree.min_key(n->right); }
 
  block_and_matrix get_cache_matrix(node n, int b) {
   if ((b == -1) or (n == nullptr)) return {b, {}};
@@ -250,13 +262,8 @@ class impurity_trace {
   return {b_mat.b, std::move(M)};
  }
 
- // min/max of left/right. Precondition: n->left/n->right is not null
- time_pt tau_maxL(node n) const { return tree.max_key(n->left); }
- time_pt tau_minR(node n) const { return tree.min_key(n->right); }
-
  // For three functions below, remember that tree.get_compare(x,y) = (x left of y in tree)
 
- // FIXME -- remove this?
  bool ML_MR_MM_DEBUG = false;
 
  // Compute image of entry block b_i at operator at tau
@@ -296,7 +303,7 @@ class impurity_trace {
  // Compute matrix products of the subtree, with the time evolution between operator
  // for the nodes with key < tau (i.e. does not include the operator at key == tau).
  // Precondition : n is not null
- // NB :does NOT include time evolution outside of the tree ...
+ // NB: does NOT include time evolution outside of the tree ...
  // b_i is the entry block
  block_and_matrix compute_M_L(node n, time_pt tau, int b_i) {
   if (ML_MR_MM_DEBUG) std::cout << "ML n->key: " << n->key << " tau: " << tau << std::endl;
@@ -321,7 +328,6 @@ class impurity_trace {
  // compute_M_L(n, tau_l, b_i) => compute_M_M(n, beta, tau_l, b_i)
  // compute_M_R(n, tau_r, b_i) => compute_M_M(n, tau_r, 0, b_i)
  block_and_matrix compute_M_M(node n, time_pt tau_l, time_pt tau_r, int b_i) {
-
   if (ML_MR_MM_DEBUG) std::cout << "MM n->key: " << n->key << " tauL: " << tau_l << " tauR: " << tau_r << std::endl;
   if (n == nullptr) return {b_i, {}}; // Cannot guarantee that n is not null
   // tau_l > tau_r => get central part of tree
@@ -352,32 +358,8 @@ class impurity_trace {
   }
   else TRIQS_RUNTIME_ERROR << "compute_M_M: both operators are at the same time!";
  }
-// // Compute matrix product of operators and time evolution from operator to right of tau_l to operator to the left of tau_r
-// // Important -- does NOT include operator at tau_l and tau_r nor the time evolution to tau_l or tau_r!
-// // compute_M_L(n, tau_l, b_i) => compute_M_M(n, beta, tau_l, b_i)
-// // compute_M_R(n, tau_r, b_i) => compute_M_M(n, tau_r, 0, b_i)
-// block_and_matrix compute_M_M(node n, time_pt tau_l, time_pt tau_r, int b_i) {
-//  if (ML_MR_MM_DEBUG) std::cout << "MM n->key: " << n->key << " tauL: " << tau_l << " tauR: " << tau_r << std::endl;
-//  if (n == nullptr) return {b_i, {}};                                                      // Cannot guarantee that n is not null
-//  if (!tree.get_compare()(tau_l, n->key)) return compute_M_M(n->right, tau_l, tau_r, b_i); // n->key < tau_l
-//  if (!tree.get_compare()(n->key, tau_r)) return compute_M_M(n->left, tau_l, tau_r, b_i);  // n->key > tau_r
-//  // n->key in ] tau_l, tau_r [
-//  block_and_matrix b_mat;
-//  if (!n->right) {
-//   b_mat = get_op_block_and_matrix(n->op, b_i);
-//  } else {
-//   auto b_mat_r = compute_M_L(n->right, tau_r, b_i);
-//   b_mat = b_mat_r.M.is_empty() ? get_op_block_and_matrix(n->op, b_i) : get_op(n) * evolve(tau_minR(n), n->key, b_mat_r);
-//  }
-//  if (!n->left) return b_mat;
-//  auto b_mat_l = compute_M_R(n->left, tau_l, b_mat.b);
-//  return b_mat_l.M.is_empty() ? b_mat : b_mat_l * evolve(n->key, tau_maxL(n), std::move(b_mat));
-// }
 
-//FIXME remove these functions if unused
- time_pt _beta = make_time_pt_beta(config->beta());
- time_pt _zero = make_time_pt_zero(config->beta());
-
+ // ---------------- Tree node addition/removal machinery ----------------
  private:
  /*************************************************************************
   *  Ordinary binary search tree (BST) insertion of the trial nodes
