@@ -206,8 +206,9 @@ class impurity_trace {
  double diff_threshold = 1.e-8;
  void check_ML_MM_MR(bool print = false);
  void check_trace_from_ML_MR(std::vector<node> const& flat_config, int index_node, bool print = false);
- void check_trace_from_ML_MM_MR(std::vector<node> const& flat_config, int index_node_l, int index_node_r, bool print = false);
- void check_trace_from_MM(std::vector<node> const& flat_config, int index_node_l, int index_node_r, bool print = false);
+ void check_trace_from_ML_MM_MR(std::vector<node> const& flat_config, int index_node_r, int index_node_l, bool print = false);
+ void check_trace_from_MM(std::vector<node> const& flat_config, int index_node, bool print = false);
+ void check_trace_from_MM(std::vector<node> const& flat_config, int index_node_r, int index_node_l, bool print = false);
 
  // ---------------- Linear products machinery ----------------
 
@@ -227,6 +228,7 @@ class impurity_trace {
     |   <--M_L-->              <----- M_M ----->              <-- M_R -->  |
   *************************************************************************/
 
+ // Special time points
  time_pt _beta = make_time_pt_beta(config->beta());
  time_pt _zero = make_time_pt_zero(config->beta());
  time_pt _epsilon = make_time_pt_epsilon(config->beta());
@@ -239,6 +241,7 @@ class impurity_trace {
   if ((b == -1) or (n == nullptr)) return {b, {}};
   return {n->cache.block_table[b], n->cache.matrices[b]};
  }
+
  int get_cache_block(node n, int b) {
   return ((b == -1) or (n == nullptr)) ? b : n->cache.block_table[b];
  }
@@ -254,11 +257,11 @@ class impurity_trace {
   auto dim1 = first_dim(M); // = get_block_dim(b_mat.b)
   auto dim2 = second_dim(M);
   auto _ = arrays::range();
-  double dtau = double(tau2 - tau1);
+  double mdtau = -double(tau2 - tau1);
   if ((dim1 == 1) and (dim2 == 1))
-   M(0, 0) *= std::exp(-dtau * get_block_eigenval(b_mat.b, 0));
+   M(0, 0) *= std::exp(mdtau * get_block_eigenval(b_mat.b, 0));
   else
-   for (int i = 0; i < dim1; ++i) M(i, _) *= std::exp(-dtau * get_block_eigenval(b_mat.b, i));
+   for (int i = 0; i < dim1; ++i) M(i, _) *= std::exp(mdtau * get_block_eigenval(b_mat.b, i));
   return {b_mat.b, std::move(M)};
  }
 
@@ -324,16 +327,24 @@ class impurity_trace {
  }
 
  // Compute matrix product of operators and time evolution from operator to right of tau_l to operator to the left of tau_r
+ // Works in a cyclic fashion too, if tau_r > tau_l
+ //
+ //                     <-- tau_l > tau_r -->       
+ // |---------|--- x ---|-------------------|--- x ---|-----------|
+ //              tau_l                         tau_r    
+ // /--------->                                       <-----------\
+ // \---------------------- tau_r > tau_l ------------------------/
+ //
  // Important -- does NOT include operator at tau_l and tau_r nor the time evolution to tau_l or tau_r!
- // compute_M_L(n, tau_l, b_i) => compute_M_M(n, beta, tau_l, b_i)
- // compute_M_R(n, tau_r, b_i) => compute_M_M(n, tau_r, 0, b_i)
- block_and_matrix compute_M_M(node n, time_pt tau_l, time_pt tau_r, int b_i) {
+ // compute_M_L(n, tau_l, b_i) => compute_M_M(n, tau_l, beta, b_i)
+ // compute_M_R(n, tau_r, b_i) => compute_M_M(n, 0, tau_r, b_i)
+ block_and_matrix compute_M_M(node n, time_pt tau_r, time_pt tau_l, int b_i) {
   if (ML_MR_MM_DEBUG) std::cout << "MM n->key: " << n->key << " tauL: " << tau_l << " tauR: " << tau_r << std::endl;
   if (n == nullptr) return {b_i, {}}; // Cannot guarantee that n is not null
   // tau_l > tau_r => get central part of tree
   if (tree.get_compare()(tau_l, tau_r)) {
-   if (!tree.get_compare()(tau_l, n->key)) return compute_M_M(n->right, tau_l, tau_r, b_i); // n->key < tau_l
-   if (!tree.get_compare()(n->key, tau_r)) return compute_M_M(n->left, tau_l, tau_r, b_i);  // n->key > tau_r
+   if (!tree.get_compare()(tau_l, n->key)) return compute_M_M(n->right, tau_r, tau_l, b_i); // n->key < tau_l
+   if (!tree.get_compare()(n->key, tau_r)) return compute_M_M(n->left, tau_r, tau_l, b_i);  // n->key > tau_r
    // n->key in ] tau_l, tau_r [
    block_and_matrix b_mat;
    if (!n->right) {

@@ -39,6 +39,15 @@ int main() {
  EXPECT_CLOSE(compute_evolution_integral(lamb1, lamb1, lamb1, lamb1, lamb2), 0.017586090258800525)
  EXPECT_CLOSE(compute_evolution_integral(lamb1, lamb1, lamb1, lamb1, lamb1), 0.013869628487419981)
 
+ // .. as above but with order of repeated entries changed -- result should be unaffected
+ EXPECT_CLOSE(compute_evolution_integral(lamb1, lamb2, lamb3, lamb4, lamb5), 0.17638333857571462 )
+ EXPECT_CLOSE(compute_evolution_integral(lamb2, lamb1, lamb3, lamb1, lamb4), 0.020244899523797544)
+ EXPECT_CLOSE(compute_evolution_integral(lamb1, lamb2, lamb2, lamb1, lamb3), 0.030709162276787143)
+ EXPECT_CLOSE(compute_evolution_integral(lamb3, lamb1, lamb2, lamb1, lamb1), 0.0247729599423155  )
+ EXPECT_CLOSE(compute_evolution_integral(lamb2, lamb1, lamb2, lamb1, lamb1), 0.022082528548217618)
+ EXPECT_CLOSE(compute_evolution_integral(lamb1, lamb2, lamb1, lamb1, lamb1), 0.017586090258800525)
+ EXPECT_CLOSE(compute_evolution_integral(lamb1, lamb1, lamb1, lamb1, lamb1), 0.013869628487419981)
+
  auto dt4 = dt2 * dt2;
  EXPECT_CLOSE(dt4 * compute_evolution_integral(mdt * lamb1, mdt * lamb2, mdt * lamb3, mdt * lamb4, mdt * lamb5), 0.002228035849416145)
  EXPECT_CLOSE(dt4 * compute_evolution_integral(mdt * lamb1, mdt * lamb1, mdt * lamb2, mdt * lamb3, mdt * lamb4), 0.003962922812390968)

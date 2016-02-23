@@ -29,6 +29,7 @@ template <> struct py_converter<solve_parameters_t> {
   PyDict_SetItemString( d, "measure_density_matrix"      , convert_to_python(x.measure_density_matrix));
   PyDict_SetItemString( d, "use_norm_as_weight"          , convert_to_python(x.use_norm_as_weight));
   PyDict_SetItemString( d, "measure_four_body_correlator", convert_to_python(x.measure_four_body_correlator));
+  PyDict_SetItemString( d, "measure_two_body_correlator" , convert_to_python(x.measure_two_body_correlator));
   PyDict_SetItemString( d, "performance_analysis"        , convert_to_python(x.performance_analysis));
   PyDict_SetItemString( d, "proposal_prob"               , convert_to_python(x.proposal_prob));
   return d;
@@ -69,6 +70,7 @@ template <> struct py_converter<solve_parameters_t> {
   _get_optional(dic, "measure_density_matrix"      , res.measure_density_matrix         ,false);
   _get_optional(dic, "use_norm_as_weight"          , res.use_norm_as_weight             ,false);
   _get_optional(dic, "measure_four_body_correlator", res.measure_four_body_correlator   ,std::make_pair(many_body_op_t{},false));
+  _get_optional(dic, "measure_two_body_correlator" , res.measure_two_body_correlator    ,std::make_pair(many_body_op_t{},false));
   _get_optional(dic, "performance_analysis"        , res.performance_analysis           ,false);
   _get_optional(dic, "proposal_prob"               , res.proposal_prob                  ,(std::map<std::string,double>{}));
   return res;
@@ -101,7 +103,7 @@ template <> struct py_converter<solve_parameters_t> {
   std::stringstream fs, fs2; int err=0;
 
 #ifndef TRIQS_ALLOW_UNUSED_PARAMETERS
-  std::vector<std::string> ks, all_keys = {"h_int","n_cycles","partition_method","quantum_numbers","length_cycle","n_warmup_cycles","random_seed","random_name","max_time","verbosity","move_shift","move_double","use_trace_estimator","measure_g_tau","measure_g_l","measure_pert_order","measure_density_matrix","use_norm_as_weight","measure_four_body_correlator","performance_analysis","proposal_prob"};
+  std::vector<std::string> ks, all_keys = {"h_int","n_cycles","partition_method","quantum_numbers","length_cycle","n_warmup_cycles","random_seed","random_name","max_time","verbosity","move_shift","move_double","use_trace_estimator","measure_g_tau","measure_g_l","measure_pert_order","measure_density_matrix","use_norm_as_weight","measure_four_body_correlator","measure_two_body_correlator","performance_analysis","proposal_prob"};
   pyref keys = PyDict_Keys(dic);
   if (!convertible_from_python<std::vector<std::string>>(keys, true)) {
    fs << "\nThe dict keys are not strings";
@@ -132,6 +134,7 @@ template <> struct py_converter<solve_parameters_t> {
   _check_optional <bool                           >(dic, fs, err, "measure_density_matrix"      , "bool");
   _check_optional <bool                           >(dic, fs, err, "use_norm_as_weight"          , "bool");
   _check_optional <std::pair<many_body_op_t, bool>>(dic, fs, err, "measure_four_body_correlator", "std::pair<many_body_op_t, bool>");
+  _check_optional <std::pair<many_body_op_t, bool>>(dic, fs, err, "measure_two_body_correlator" , "std::pair<many_body_op_t, bool>");
   _check_optional <bool                           >(dic, fs, err, "performance_analysis"        , "bool");
   _check_optional <std::map<std::string, double>  >(dic, fs, err, "proposal_prob"               , "std::map<std::string, double>");
   if (err) goto _error;

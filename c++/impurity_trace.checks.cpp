@@ -124,7 +124,7 @@ void impurity_trace::check_ML_MM_MR(bool print) {
   auto true_mat = get_cache_matrix(root, bl);
   auto b_mat_r = compute_M_R(root, _beta, bl);
   auto b_mat_l = compute_M_L(root, _zero, bl);
-  auto b_mat_m = compute_M_M(root, _beta, _zero, bl);
+  auto b_mat_m = compute_M_M(root, _zero, _beta, bl);
   if ((b_mat_l.b != bl) or (b_mat_m.b != bl) or (b_mat_r.b != bl)) TRIQS_RUNTIME_ERROR << "check_ML_MM_MR: block mismatch!";
   if (max_element(abs(b_mat_l.M - true_mat.M)) > diff_threshold)
    std::cout << "check_ML_MM_MR: ML does not match true matrix: " << b_mat_l.M << " L " << true_mat.M << " true " << std::endl;
@@ -188,7 +188,7 @@ void impurity_trace::check_trace_from_ML_MR(std::vector<node> const& flat_config
 
 // Preconditions: chosen operator with index_node_l/r is always first of a pair, 
 // i.e. there is at least one operator to the right of op(index_node_r) but op(index_node_l) could be the leftmost
-void impurity_trace::check_trace_from_ML_MM_MR(std::vector<node> const& flat_config, int index_node_l, int index_node_r,
+void impurity_trace::check_trace_from_ML_MM_MR(std::vector<node> const& flat_config, int index_node_r, int index_node_l,
                                                bool print) {
 
  if (print) std::cout << " ... checking trace from ML, MM and MR against trace from root cache matrix " << std::endl;
@@ -230,7 +230,7 @@ void impurity_trace::check_trace_from_ML_MM_MR(std::vector<node> const& flat_con
   // Done in three pieces : (M_L * (evo4 * op_l * evo3 * M_M * (evo2 * op_r * evo1 * M_R)))
   auto b_mat = evolve(tau_r, tau2, get_op(node_r) * evolve(tau1, tau_r, compute_M_R(root, tau_r, bl)));
   // If M_M is empty, only evolve using evo2
-  auto b_mat_M = compute_M_M(root, tau_l, tau_r, b_mat.b);
+  auto b_mat_M = compute_M_M(root, tau_r, tau_l, b_mat.b);
   if (!b_mat_M.M.is_empty()) b_mat = evolve(tau3, tau_l, b_mat_M * b_mat);
   b_mat = evolve(tau_l, tau4, get_op(node_l) * b_mat);
   b_mat = compute_M_L(root, tau_l, b_mat.b) * b_mat;
@@ -246,11 +246,63 @@ void impurity_trace::check_trace_from_ML_MM_MR(std::vector<node> const& flat_con
                       << ", while recomputed trace = " << reconstructed_trace;
 }
 
+//-------- Compute trace of configuration using only M_M and one operator -------------------------
+
+// Preconditions: chosen operator with index_node_l/r is always first of a pair 
+void impurity_trace::check_trace_from_MM(std::vector<node> const& flat_config, int index_node, bool print) {
+
+ if (print) std::cout << " ... checking trace from MM against trace from root cache matrix " << std::endl;
+
+ // Update the cache fully, i.e. without the Yee trick
+ auto w_rw = compute();
+ auto true_trace = w_rw.first * w_rw.second; // tr = norm * tr/norm = w * rw
+
+ auto fc_size = flat_config.size();
+ auto cyclic_index = [&](int index) { return (index >= 0) ? index % fc_size : (index + fc_size) % fc_size; };
+ auto node = flat_config[index_node];
+ auto tau = node->key;
+ auto root = tree.get_root();
+ trace_t reconstructed_trace = 0;
+ auto tau1 = flat_config[cyclic_index(index_node + 1)]->key;
+ auto tau2 = flat_config[cyclic_index(index_node - 1)]->key;
+
+ for (auto bl : contributing_blocks) {
+
+  auto xx = compute_block_table_and_bound(root, bl, std::numeric_limits<double>::max());
+  if (xx.first == -1) TRIQS_RUNTIME_ERROR << "null block";
+
+  auto b1 = compute_block_at_tau(root, tau, bl);
+  auto b1_from_MR = compute_M_R(root, tau, bl).b;
+  if (b1 != b1_from_MR)
+   TRIQS_RUNTIME_ERROR << "check_trace_from_MM: test 1: blocks do not match up: " << b1 << " and " << b1_from_MR;
+
+  auto bl2 = bl;
+  for (int i = fc_size - 1; i >= 0; --i) bl2 = get_op_block_map(flat_config[i]->op, bl2);
+  if (bl2 != bl) TRIQS_RUNTIME_ERROR << "check_trace_from_MM: test 2: blocks do not match up: " << b1 << " and " << b1_from_MR;
+
+  // Calculate matrix, working from right to left (tau = 0->beta)
+  // mat =   evo1 * M_M * evo2 * op_r
+  // blocks: b1    b1<-b2       b2<-b1
+  // times:  t_r   t1 t2         t_r
+
+  auto b_mat = evolve(tau, tau2, get_op_block_and_matrix(node->op, b1));
+  // M_M cannot be empty
+  auto b_mat_M = compute_M_M(root, tau, tau-_epsilon, b_mat.b);
+  b_mat = evolve(tau1, tau, b_mat_M * b_mat);
+  if (b_mat.b != b1) TRIQS_RUNTIME_ERROR << "check_trace_from_MM: matrix takes b_i " << b1 << " to " << b_mat.b << " !";
+
+  reconstructed_trace += trace(b_mat.M);
+ }
+
+ if (reconstructed_trace - true_trace > diff_threshold)
+  TRIQS_RUNTIME_ERROR << "check_trace_from_MM: traces do not agree. true trace = " << true_trace
+                      << ", while recomputed trace = " << reconstructed_trace;
+}
+
 //-------- Compute trace of configuration using only M_M and two operators -------------------------
 
-// Preconditions: chosen operator with index_node_l/r is always first of a pair, 
-// i.e. there is at least one operator to the right of op(index_node_r) but op(index_node_l) could be the leftmost
-void impurity_trace::check_trace_from_MM(std::vector<node> const& flat_config, int index_node_l, int index_node_r,
+// Preconditions: chosen operator with index_node_l/r is always first of a pair 
+void impurity_trace::check_trace_from_MM(std::vector<node> const& flat_config, int index_node_r, int index_node_l,
                                                bool print) {
 
  if (print) std::cout << " ... checking trace from MM against trace from root cache matrix " << std::endl;
@@ -293,10 +345,10 @@ void impurity_trace::check_trace_from_MM(std::vector<node> const& flat_config, i
 
   auto b_mat = evolve(tau_r, tau2, get_op_block_and_matrix(node_r->op, b1));
   // If M_M is empty, only evolve using evo2
-  auto b_mat_M = compute_M_M(root, tau_l, tau_r, b_mat.b);
+  auto b_mat_M = compute_M_M(root, tau_r, tau_l, b_mat.b);
   if (!b_mat_M.M.is_empty()) b_mat = evolve(tau3, tau_l, b_mat_M * b_mat);
   b_mat = evolve(tau_l, tau4, get_op(node_l) * b_mat);
-  b_mat_M = compute_M_M(root, tau_r, tau_l, b_mat.b);
+  b_mat_M = compute_M_M(root, tau_l, tau_r, b_mat.b);
   if (!b_mat_M.M.is_empty()) b_mat = evolve(tau1, tau_r, b_mat_M * b_mat);
   if (b_mat.b != b1) TRIQS_RUNTIME_ERROR << "check_trace_from_MM: matrix takes b_i " << b1 << " to " << b_mat.b << " !";
 

@@ -36,6 +36,7 @@
 #include "measure_density_matrix.hpp"
 #include "measure_average_sign.hpp"
 #include "measure_four_body_corr.hpp"
+#include "measure_two_body_corr.hpp"
 
 namespace cthyb {
 
@@ -79,6 +80,7 @@ solver_core::solver_core(double beta_, std::map<std::string, indices_type> const
   _Delta_tau = make_block_gf(block_names, delta_tau_blocks);
   _G_tau_real = make_block_gf(block_names, g_tau_real_blocks);
 
+  //_correlator = gf<imfreq, scalar_valued>{{beta, Fermion, 1025}}; //FIXME remove hardcoded n_iw
   _correlator = gf<imfreq, scalar_valued>{{beta, Boson, 32}}; //FIXME remove hardcoded n_iw
 }
 
@@ -251,6 +253,9 @@ void solver_core::solve(solve_parameters_t const & params) {
 
   if (!params.measure_four_body_correlator.first.is_zero()) {
    qmc.add_measure(measure_four_body_corr{data, _correlator, fops, params.measure_four_body_correlator.first, params.measure_four_body_correlator.second}, "Four body correlator C_abcd = < x (c+_a c_b) (tau) y (c+_c c_d) (0)>");
+  }
+  if (!params.measure_two_body_correlator.first.is_zero()) {
+   qmc.add_measure(measure_two_body_corr{data, _correlator, fops, params.measure_two_body_correlator.first, params.measure_two_body_correlator.second}, "Two body correlator C_ab = < x (c+_a c_b) >");
   }
 
   // Run! The empty (starting) configuration has sign = 1

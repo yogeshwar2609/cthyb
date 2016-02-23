@@ -3,7 +3,8 @@
 import pytriqs.utility.mpi as mpi
 from pytriqs.archive import HDFArchive
 from pytriqs.operators import *
-from pytriqs.applications.impurity_solvers.cthyb import *
+#from pytriqs.applications.impurity_solvers.cthyb_segment import *
+from cthyb_segment import *
 from pytriqs.gf.local import *
 
 spin_names = ("up","dn")
@@ -25,25 +26,19 @@ use_qn = False
 n_iw = 1025
 n_tau = 10001
 
-N   = n(*mkind("up")) + n(*mkind("dn"))
-Nup = n(*mkind("up"))
-Ndn = n(*mkind("dn"))
-
 p = {}
 p["max_time"] = -1
 p["random_name"] = ""
 p["random_seed"] = 1235 * mpi.rank + 567
-p["length_cycle"] = 1 # 1 # 50
-p["n_warmup_cycles"] = 10000 # 10 # 50000
-p["n_cycles"] = 10000 # 10000000
-#p["measure_two_body_correlator"] = (n(*mkind("up")),False)
-#p["measure_two_body_correlator"] = (n(*mkind("up"))+n(*mkind("dn")),False)
-p["measure_four_body_correlator"] = (n(*mkind("up")),False)
-#p["measure_four_body_correlator"] = (n(*mkind("up")) + n(*mkind("dn")),False)
-p["measure_density_matrix"] = True
-p["use_norm_as_weight"] = True
+p["length_cycle"] = 50
+p["n_warmup_cycles"] = 50000
+p["n_cycles"] = 10000000
+p["measure_gw"] = True
+p["measure_nn"] = True
+p["measure_nnt"] = True
+p["measure_nnw"] = True
 
-results_file_name = "anderson_%s"%V
+results_file_name = "anderson_segment_%s"%V
 if use_blocks: results_file_name += ".block"
 if use_qn: results_file_name += ".qn"
 results_file_name += ".h5"
@@ -66,7 +61,7 @@ for spin in spin_names:
 mpi.report("Constructing the solver...")
 
 # Construct the solver
-S = Solver(beta=beta, gf_struct=gf_struct, n_tau=n_tau, n_iw=n_iw)
+S = Solver(beta=beta, gf_struct=gf_struct)
 
 mpi.report("Preparing the hybridization function...")
 
@@ -82,27 +77,11 @@ mpi.report("Running the simulation...")
 # Solve the problem
 S.solve(h_int=H, **p)
 
-corr_tau = GfImTime(indices = [0], beta = beta)
-corr_tau << InverseFourier(S.correlator)
-#print 'density = ',corr_tau(beta)
-#print 'density = '
-#print S.correlator.data
-
 # Save the results
 if mpi.is_master_node():
     with HDFArchive(results_file_name,'w') as Results:
         Results['G_tau'] = S.G_tau
         Results['G_iw'] = S.G_iw
-        Results['correlator_iw'] = S.correlator
-        Results['correlator_tau'] = corr_tau
-        static_observables = {'N' : N,
-                              'Nup' : Nup,
-                              'Ndn' : Ndn, 
-                              'N*N' : N*N,
-                              'Nup^2' : Nup*Nup,
-                              'Ndn^2' : Ndn*Ndn,
-                              'Nup*Ndn' : Nup*Ndn} 
-        dm = S.density_matrix
-        for oname in static_observables.keys():
-            val = trace_rho_op(dm,static_observables[oname],S.h_loc_diagonalization)
-            print oname, val
+        Results['nn'] = S.nn
+        Results['nn_tau'] = S.nn_tau
+        Results['nn_iw'] = S.nn_iw
