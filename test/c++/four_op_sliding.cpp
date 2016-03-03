@@ -3,7 +3,7 @@
 
 using namespace cthyb;
 
-int main() {
+TEST(CTHYB, FourOpSliding) {
 
  // define lambdas
  double lamb1 = -1.1;
@@ -57,3 +57,5 @@ int main() {
  EXPECT_CLOSE(dt4 * compute_evolution_integral(mdt * lamb1, mdt * lamb1, mdt * lamb1, mdt * lamb1, mdt * lamb2), 0.004058965987701827)
  EXPECT_CLOSE(dt4 * compute_evolution_integral(mdt * lamb1, mdt * lamb1, mdt * lamb1, mdt * lamb1, mdt * lamb1), 0.004513679734029675)
 }
+
+MAKE_MAIN;
