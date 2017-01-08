@@ -25,6 +25,7 @@ if measure_g2:
 module.add_preamble("""
 #include <triqs/python_tools/converters/pair.hpp>
 #include <triqs/python_tools/converters/map.hpp>
+#include <triqs/python_tools/converters/set.hpp>
 #include <triqs/python_tools/converters/vector.hpp>
 #include <triqs/python_tools/converters/variant.hpp>
 #include <triqs/python_tools/converters/tuple.hpp>
@@ -147,16 +148,16 @@ c.add_property(name = "G_l",
 
 if measure_g2:
     c.add_property(name = "G2_iw_inu_inup_pp",
-                   getter = cfunction("g2_iw_inu_inup_t G2_iw_inu_inup_pp ()"),
+                   getter = cfunction("g2_iw_inu_inup_view G2_iw_inu_inup_pp ()"),
                    doc = """Accumulated two-particle Green's function :math:`G^{(2)}(i\\omega,i\\nu,i\\nu')` in the pp-channel. """)
     c.add_property(name = "G2_iw_inu_inup_ph",
-                   getter = cfunction("g2_iw_inu_inup_t G2_iw_inu_inup_ph ()"),
+                   getter = cfunction("g2_iw_inu_inup_view G2_iw_inu_inup_ph ()"),
                    doc = """Accumulated two-particle Green's function :math:`G^{(2)}(i\\omega,i\\nu,i\\nu')` in the ph-channel. """)
     c.add_property(name = "G2_iw_l_lp_pp",
-                   getter = cfunction("g2_iw_l_lp_t G2_iw_l_lp_pp ()"),
+                   getter = cfunction("g2_iw_l_lp_view G2_iw_l_lp_pp ()"),
                    doc = """Accumulated two-particle Green's function :math:`G^{(2)}(i\\omega,l,l')` in the pp-channel. """)
     c.add_property(name = "G2_iw_l_lp_ph",
-                   getter = cfunction("g2_iw_l_lp_t G2_iw_l_lp_ph ()"),
+                   getter = cfunction("g2_iw_l_lp_view G2_iw_l_lp_ph ()"),
                    doc = """Accumulated two-particle Green's function :math:`G^{(2)}(i\\omega,l,l')` in the ph-channel. """)
 
 c.add_property(name = "atomic_gf",
