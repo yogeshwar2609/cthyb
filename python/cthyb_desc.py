@@ -6,8 +6,6 @@ from wrap_generator import *
 module = module_(full_name = "pytriqs.applications.impurity_solvers.cthyb", doc = "The cthyb solver")
 
 # All the triqs C++/Python modules
-module.use_module('gf', 'triqs')
-module.use_module('multivar', 'triqs')
 module.use_module('operators', 'triqs')
 module.use_module('histograms', 'triqs')
 
@@ -19,6 +17,9 @@ module.add_enum("block_order", ["AABB","ABBA"], "cthyb", "Order of block indices
 
 # Add here anything to add in the C++ code at the start, e.g. namespace using
 module.add_preamble("""
+#include <triqs/python_tools/converters/gf.hpp>
+#include <triqs/python_tools/converters/block_gf.hpp>
+#include <triqs/python_tools/converters/block2_gf.hpp>
 #include <triqs/python_tools/converters/pair.hpp>
 #include <triqs/python_tools/converters/map.hpp>
 #include <triqs/python_tools/converters/set.hpp>
