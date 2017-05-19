@@ -63,7 +63,7 @@ namespace cthyb {
     array<int, 6> buf_sizes(n_l, n_l, s1, s2, s3, s4);
     buf_sizes() = buf_size_A * buf_size_B;
 
-    nfft_abcd = nfft_array_t<1, 6>({{beta, Fermion, n_iw}}, g2.data(), buf_sizes);
+    nfft_abcd = nfft_array_t<1, 6>({{beta, Boson, n_iw}}, g2.data(), buf_sizes);
   }
 
   template <g2_channel Channel, block_order Order> void measure_g2_legendre<Channel, Order>::accumulate(mc_weight_t s) {
