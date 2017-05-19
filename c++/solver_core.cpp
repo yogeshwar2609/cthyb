@@ -316,8 +316,12 @@ namespace cthyb {
 
           int n_iw = params.measure_g2_n_iw;
 
-          int buf_size1 = params.nfft_buf_sizes.count(bn1) ? params.nfft_buf_sizes.count(bn1) : 100;
-          int buf_size2 = params.nfft_buf_sizes.count(bn2) ? params.nfft_buf_sizes.count(bn2) : 100;
+          auto get_nfft_buf_size = [&params](std::string const& bn) {
+           auto it = params.nfft_buf_sizes.find(bn);
+           return (it == params.nfft_buf_sizes.end()) ? 100 : it->second;
+          };
+          int buf_size1 = get_nfft_buf_size(bn1);
+          int buf_size2 = get_nfft_buf_size(bn2);
 
           // Matsubara measurements
           if (params.measure_g2_inu) {

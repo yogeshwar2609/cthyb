@@ -61,7 +61,7 @@ namespace cthyb {
     int s4 = size_B;
 
     array<int, 6> buf_sizes(n_l, n_l, s1, s2, s3, s4);
-    buf_sizes() = size_A * size_B;
+    buf_sizes() = buf_size_A * buf_size_B;
 
     nfft_abcd = nfft_array_t<1, 6>({{beta, Fermion, n_iw}}, g2.data(), buf_sizes);
   }
