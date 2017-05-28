@@ -192,19 +192,34 @@ namespace experimental {
 
       // Perform NFFT transform and accumulate inside fiw_arr
       void do_nfft() {
-// NFFT Library precomputation and checks
-#ifdef NFFT_OLD_API
-        if (plan_ptr->nfft_flags & PRE_ONE_PSI) nfft_precompute_one_psi(plan_ptr.get());
-#else
-        if (plan_ptr->flags & PRE_ONE_PSI) nfft_precompute_one_psi(plan_ptr.get());
-#endif
-        if (do_checks) { // Check validity of NFFT parameters
-          const char *error_str = nfft_check(plan_ptr.get());
-          if (error_str != 0) TRIQS_RUNTIME_ERROR << "Error in NFFT module: " << error_str << "\n";
-        }
 
-        // Execute transform
-        nfft_adjoint(plan_ptr.get());
+        // nfft_adjoint() uses a window function (Kaiser-Bessel by default)
+        // that cannot be constructed for plan_ptr->N_total < 12.
+        // In the small N_total case one has to call nfft_adjoint_direct() instead,
+        // which is also faster for the smaller N_total.
+        //
+        // C.f. https://github.com/NFFT/nfft/issues/34
+        if(plan_ptr->N_total < 12) {
+
+          // Execute transform
+          nfft_adjoint_direct(plan_ptr.get());
+
+        } else {
+
+          // NFFT Library precomputation and checks
+#ifdef NFFT_OLD_API
+          if (plan_ptr->nfft_flags & PRE_ONE_PSI) nfft_precompute_one_psi(plan_ptr.get());
+#else
+          if (plan_ptr->flags & PRE_ONE_PSI) nfft_precompute_one_psi(plan_ptr.get());
+#endif
+          if (do_checks) { // Check validity of NFFT parameters
+            const char *error_str = nfft_check(plan_ptr.get());
+            if (error_str != 0) TRIQS_RUNTIME_ERROR << "Error in NFFT module: " << error_str << "\n";
+          }
+
+          // Execute transform
+          nfft_adjoint(plan_ptr.get());
+        }
 
         // Accumulate results in fiw_arr. Care to normalize results afterwards
         if (all_fermion) {
