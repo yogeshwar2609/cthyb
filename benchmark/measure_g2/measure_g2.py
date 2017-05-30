@@ -14,8 +14,8 @@ num_orb = 2
 mu = 1.5
 U = 2.0
 J = 0.2
-epsilon = [-1.3, 1.3]
-V = [2.0*np.eye(num_orb) + 0.2*(np.ones((num_orb, num_orb)) - np.eye(num_orb))]*2
+epsilon = np.array([-0.2, 0.2])
+V = 0.7*np.eye(num_orb) + 0.1*(np.ones((num_orb, num_orb)) - np.eye(num_orb))
 
 spin_names = ("up", "dn")
 orb_names = range(num_orb)
@@ -79,12 +79,8 @@ mpi.report("Preparing the hybridization function...")
 
 # Set hybridization function
 delta_w = GfImFreq(indices = orb_names, beta = beta, n_points = n_iw)
-delta_w_part = delta_w.copy()
-for e, v in zip(epsilon,V):
-    delta_w_part << inverse(iOmega_n - e)
-    delta_w_part.from_L_G_R(np.transpose(v), delta_w_part, v)
-    delta_w += delta_w_part
-
+delta_w << inverse(iOmega_n - np.diag(epsilon))
+delta_w.from_L_G_R(np.transpose(V), delta_w, V)
 S.G0_iw << inverse(iOmega_n + mu - delta_w)
 
 # Accumulate histograms and G_tau
