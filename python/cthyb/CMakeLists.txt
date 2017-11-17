@@ -6,6 +6,11 @@ target_link_libraries(solver_core cthyb_c)
 # We need to include the convertes.hxx files
 target_include_directories(solver_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
+# Test module
+add_cpp2py_module(test_module)
+target_link_libraries(test_module cthyb_c)
+target_include_directories(test_module PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
 # Configure the version
 configure_file(version.py.in version.py)
 
