@@ -15,8 +15,8 @@ endmacro()
 
 #
 if(NFFT_FOUND)
- add_test_defs(test_nfft)
- target_link_libraries(test_nfft PRIVATE nfft)
+ add_test_defs(nfft_test)
+ target_link_libraries(nfft_test PRIVATE nfft)
 endif(NFFT_FOUND)
 
 add_test_defs(anderson)

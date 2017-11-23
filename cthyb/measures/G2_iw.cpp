@@ -52,13 +52,16 @@ namespace cthyb {
 
     // Allocate temporary NFFT two-frequency matrix M
     {
-      int nfreq = std::max(3 * n_fermionic, n_bosonic + n_fermionic);
-      gf_mesh<imfreq> iw_mesh_large{beta, Fermion, nfreq};
-      gf_mesh<cartesian_product<imfreq, imfreq>> M_mesh{iw_mesh_large, iw_mesh_large};
+      gf_mesh<cartesian_product<imfreq, imfreq>> M_mesh;
 
       if (Channel == G2_channel::AllFermionic) { // Smaller mesh possible in AllFermionic
+	gf_mesh<imfreq> iw_mesh_large{beta, Fermion, 3 * n_fermionic};
         gf_mesh<imfreq> iw_mesh_small{beta, Fermion, n_fermionic};
         M_mesh = gf_mesh<cartesian_product<imfreq, imfreq>>{iw_mesh_large, iw_mesh_small};
+      } else {
+	int nfreq = n_bosonic + n_fermionic;
+	gf_mesh<imfreq> iw_mesh{beta, Fermion, nfreq};
+        M_mesh = gf_mesh<cartesian_product<imfreq, imfreq>>{iw_mesh, iw_mesh};
       }
 
       // Initialize intermediate scattering matrix
@@ -77,6 +80,8 @@ namespace cthyb {
         array<int, 2> buf_sizes{M(bidx).target_shape()};
         buf_sizes() = buf_size;
 
+	std::cout << "bname = " << bname << " buf_size = " << buf_size << "\n";
+
         M_nfft(bidx) = nfft_array_t<2, 2>(M(bidx).mesh(), M(bidx).data(), buf_sizes);
       }
     }
@@ -84,6 +89,8 @@ namespace cthyb {
 
   template <G2_channel Channel> void measure_G2_iw<Channel>::accumulate(mc_weight_t s) {
 
+    timer_nfft.start();
+    
     s *= data.atomic_reweighting;
     average_sign += s;
 
@@ -102,12 +109,23 @@ namespace cthyb {
       M_nfft(bidx).flush();
     }
 
+    timer_nfft.stop();
+    timer_G2_acc.start();
+    
     for (auto &m : G2_measures()) {
       auto G2_iw_block = G2_iw(m.b1.idx, m.b2.idx);
       bool diag_block  = (m.b1.idx == m.b2.idx);
+      if(Channel == G2_channel::PH && m.target_shape[0] == 1) {
+      if (order == block_order::AABB || diag_block) accumulate_impl_AABB_opt(G2_iw_block, s, M(m.b1.idx), M(m.b2.idx));
+      if (order == block_order::ABBA || diag_block) accumulate_impl_ABBA_opt(G2_iw_block, s, M(m.b1.idx), M(m.b2.idx));
+      } else {
       if (order == block_order::AABB || diag_block) accumulate_impl_AABB(G2_iw_block, s, M(m.b1.idx), M(m.b2.idx));
       if (order == block_order::ABBA || diag_block) accumulate_impl_ABBA(G2_iw_block, s, M(m.b1.idx), M(m.b2.idx));
+      }
     }
+
+    timer_G2_acc.stop();
+
   }
 
   // Index placeholders
@@ -125,15 +143,59 @@ namespace cthyb {
   // -- Particle-hole
 
   template <> inline void measure_G2_iw<G2_channel::PH>::accumulate_impl_AABB(G2_iw_t::g_t::view_type G2, mc_weight_t s, M_type const &M_ij, M_type const &M_kl) {
+
+    /*
     G2(w, n1, n2)
     (i, j, k, l) << G2(w, n1, n2)(i, j, k, l)                    //
           + s * M_ij(n1, n1 + w)(i, j) * M_kl(n2 + w, n2)(k, l); // sign in lhs in fft
+    */
+
+    auto const b_mesh = std::get<0>(G2.mesh());
+    auto const f_mesh = std::get<1>(G2.mesh());
+
+    for (auto const &w : b_mesh)
+      for (auto const &n1 : f_mesh)
+        for (auto const &n2 : f_mesh)
+	  G2[w, n1, n2](i, j, k, l) << G2[w, n1, n2](i, j, k, l)
+	    + s * M_ij[n1, n1 + w](i, j) * M_kl[n2 + w, n2](k, l);
   }
 
   template <> inline void measure_G2_iw<G2_channel::PH>::accumulate_impl_ABBA(G2_iw_t::g_t::view_type G2, mc_weight_t s, M_type const &M_il, M_type const &M_kj) {
+
+    /*
     G2(w, n1, n2)
     (i, j, k, l) << G2(w, n1, n2)(i, j, k, l)                    //
           - s * M_il(n1, n2)(i, l) * M_kj(n2 + w, n1 + w)(k, j); // sign in lhs in fft
+    */
+
+    auto const b_mesh = std::get<0>(G2.mesh());
+    auto const f_mesh = std::get<1>(G2.mesh());
+
+    for (auto const &w : b_mesh)
+      for (auto const &n1 : f_mesh)
+        for (auto const &n2 : f_mesh)
+	  G2[w, n1, n2](i, j, k, l) << G2[w, n1, n2](i, j, k, l)
+          - s * M_il[n1, n2](i, l) * M_kj[n2 + w, n1 + w](k, j);
+  }
+  
+  template <> inline void measure_G2_iw<G2_channel::PH>::accumulate_impl_AABB_opt(G2_iw_t::g_t::view_type G2, mc_weight_t s, M_type const &M_ij, M_type const &M_kl) {
+
+    auto const b_mesh = std::get<0>(G2.mesh());
+    auto const f_mesh = std::get<1>(G2.mesh());
+    for (auto const &w : b_mesh)
+      for (auto const &n1 : f_mesh)
+	for (auto const &n2 : f_mesh)
+	  G2[w, n1, n2](0, 0, 0, 0) += s * M_ij[n1, n1 + w](0, 0) * M_kl[n2 + w, n2](0, 0);
+  }
+
+  template <> inline void measure_G2_iw<G2_channel::PH>::accumulate_impl_ABBA_opt(G2_iw_t::g_t::view_type G2, mc_weight_t s, M_type const &M_il, M_type const &M_kj) {
+
+    auto const b_mesh = std::get<0>(G2.mesh());
+    auto const f_mesh = std::get<1>(G2.mesh());
+    for (auto const &w : b_mesh)
+      for (auto const &n1 : f_mesh)
+	for (auto const &n2 : f_mesh)
+	  G2[w, n1, n2](0, 0, 0, 0) += -s * M_il[n1, n2](0, 0) * M_kj[n2 + w, n1 + w](0, 0);   
   }
 
   // -- Particle-particle
@@ -202,6 +264,10 @@ namespace cthyb {
     average_sign = mpi_all_reduce(average_sign, com);
     G2_iw        = mpi_all_reduce(G2_iw, com);
     G2_iw = G2_iw / (real(average_sign) * data.config.beta());
+
+    std::cout << "G2_iw internal timing results:\n"
+	      << "timer_nfft   = " << double(timer_nfft) << "\n"
+	      << "timer_G2_acc = " << double(timer_G2_acc) << "\n";
   }
 
   template class measure_G2_iw<G2_channel::AllFermionic>;

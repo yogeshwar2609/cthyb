@@ -25,6 +25,9 @@
 #include <triqs/statistics/histograms.hpp>
 #include <triqs/experimental/nfft_array.hpp>
 
+// -- Timing tests
+#include <triqs/utility/timer.hpp>
+
 #include "../qmc_data.hpp"
 
 #include "util.hpp"
@@ -49,14 +52,19 @@ namespace cthyb {
     inline void accumulate_impl_AABB(G2_iw_t::g_t::view_type G2, mc_weight_t s, M_type const &M_ab, M_type const &M_cd);
     inline void accumulate_impl_ABBA(G2_iw_t::g_t::view_type G2, mc_weight_t s, M_type const &M_ad, M_type const &M_cb);
 
+    inline void accumulate_impl_AABB_opt(G2_iw_t::g_t::view_type G2, mc_weight_t s, M_type const &M_ab, M_type const &M_cd);
+    inline void accumulate_impl_ABBA_opt(G2_iw_t::g_t::view_type G2, mc_weight_t s, M_type const &M_ad, M_type const &M_cb);
+    
     qmc_data const &data;
     G2_iw_t::view_type G2_iw;
     mc_weight_t average_sign;
     block_order order;
     G2_measures_t G2_measures;
-
+    
     M_block_type M;
     array<nfft_array_t<2, 2>, 1> M_nfft;
+
+    triqs::utility::timer timer_nfft, timer_G2_acc;
   };
 
 } // namespace cthyb
