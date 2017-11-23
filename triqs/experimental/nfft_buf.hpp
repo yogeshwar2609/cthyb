@@ -74,9 +74,15 @@ namespace triqs {
         // -- Default init
         //nfft_init(plan_ptr.get(), Rank, buf_extents.ptr(), buf_size);
 
-        // Init nfft_plan
+        /// compute the next highest power of 2 of 32-bit v
+        auto next_power_of_2 = [](unsigned int v) {
+          v--; v |= v >> 1; v |= v >> 2; v |= v >> 4; v |= v >> 8; v |= v >> 16; v++;
+          return v;
+        };
+
+	// Init nfft_plan
         mini_vector<int, Rank> extents_fftw;
-        for (int i = 0; i < Rank; i++) extents_fftw[i] = nfft_next_power_of_2(buf_extents[i]);
+        for (int i = 0; i < Rank; i++) extents_fftw[i] = next_power_of_2(buf_extents[i]);
 
         unsigned nfft_flags = PRE_PHI_HUT | PRE_PSI | MALLOC_X | MALLOC_F_HAT | MALLOC_F | FFTW_INIT | FFT_OUT_OF_PLACE | NFFT_SORT_NODES;
         unsigned fftw_flags = FFTW_ESTIMATE | FFTW_DESTROY_INPUT;
