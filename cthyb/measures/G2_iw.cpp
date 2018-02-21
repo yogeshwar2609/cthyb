@@ -201,7 +201,8 @@ namespace cthyb {
   template <G2_channel Channel> void measure_G2_iw<Channel>::collect_results(triqs::mpi::communicator const &com) {
     average_sign = mpi_all_reduce(average_sign, com);
     G2_iw        = mpi_all_reduce(G2_iw, com);
-    G2_iw = G2_iw / (real(average_sign) * data.config.beta());
+    for( auto & g2_iw : G2_iw ) g2_iw /= (real(average_sign) * data.config.beta());
+    // G2_iw = G2_iw / (real(average_sign) * data.config.beta()); // This segfaults on triqs/unstable da793fbd
   }
 
   template class measure_G2_iw<G2_channel::AllFermionic>;
