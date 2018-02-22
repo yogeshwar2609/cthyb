@@ -78,7 +78,7 @@ namespace cthyb {
       }
 
       // Initialize intermediate scattering matrix
-      M = block_gf{M_mesh, G2_measures.gf_struct};
+      M = make_block_gf(M_mesh, G2_measures.gf_struct);
 
       // Accumulation buffer for scattering matrix
       for (auto const &m : M) {
