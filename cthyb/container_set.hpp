@@ -47,17 +47,23 @@ namespace cthyb {
     std::optional<G2_tau_t> G2_tau;
 
     /// Two-particle Green's function :math:`G^{(2)}(i\nu,i\nu',i\nu'')` (three Fermionic frequencies)
-    std::optional<G2_iw_t> G2_iw_nfft;
+    std::optional<G2_iw_t> G2_iw;
 
     /// Two-particle Green's function :math:`G^{(2)}(i\nu,i\nu',i\nu'')` (three Fermionic frequencies)
-    std::optional<G2_iw_t> G2_iw;
+    std::optional<G2_iw_t> G2_iw_nfft;
 
     /// Two-particle Green's function :math:`G^{(2)}(i\omega,i\nu,i\nu')` in the pp-channel (one bosonic matsubara and two fermionic)
     std::optional<G2_iw_t> G2_iw_pp;
 
+    /// Two-particle Green's function :math:`G^{(2)}(i\omega,i\nu,i\nu')` in the pp-channel (one bosonic matsubara and two fermionic)
+    std::optional<G2_iw_t> G2_iw_pp_nfft;
+    
     /// Two-particle Green's function :math:`G^{(2)}(i\omega,i\nu,i\nu')` in the ph-channel (one bosonic matsubara and two fermionic)
     std::optional<G2_iw_t> G2_iw_ph;
 
+    /// Two-particle Green's function :math:`G^{(2)}(i\omega,i\nu,i\nu')` in the ph-channel (one bosonic matsubara and two fermionic)
+    std::optional<G2_iw_t> G2_iw_ph_nfft;
+    
     /// Two-particle Green's function :math:`G^{(2)}(i\omega,l,l')` in the pp-channel (one bosonic matsubara and two legendre)
     std::optional<G2_iwll_t> G2_iwll_pp;
 
