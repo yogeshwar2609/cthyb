@@ -19,26 +19,12 @@
  *
  ******************************************************************************/
 #include "./g2.hpp"
-#include <triqs/utility/legendre.hpp>
 
 #ifndef NDEBUG
 #define TRIQS_ARRAYS_ENFORCE_BOUNDCHECK
 #endif
 
 namespace cthyb {
-
-  // Generates values of \tilde P_l(x(\tau_1-\tau_2))
-  struct tilde_p_gen {
-    triqs::utility::legendre_generator l_gen;
-    double beta;
-    double f;
-    tilde_p_gen(double beta) : beta(beta) {}
-    void reset(time_pt const& tau1, time_pt const& tau2) {
-      l_gen.reset(2 * double(tau1 - tau2) / beta - 1);
-      f = tau1 > tau2 ? 1 : -1;
-    }
-    double next() { return f * l_gen.next(); }
-  };
 
   template <g2_channel Channel, block_order Order>
   measure_g2_legendre<Channel, Order>::measure_g2_legendre(int A, int B, g2_view_type g2, qmc_data const &data, int buf_size_A, int buf_size_B)

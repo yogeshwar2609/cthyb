@@ -26,11 +26,26 @@
 #include "../nfft_array.hpp"
 #include "../qmc_data.hpp"
 
+#include <triqs/utility/legendre.hpp>
+
 namespace cthyb {
 
   using namespace triqs::arrays;
 
   enum g2_channel { PP, PH };
+
+  // Generates values of \tilde P_l(x(\tau_1-\tau_2))
+  struct tilde_p_gen {
+    triqs::utility::legendre_generator l_gen;
+    double beta;
+    double f;
+    tilde_p_gen(double beta) : beta(beta) {}
+    void reset(time_pt const& tau1, time_pt const& tau2) {
+      l_gen.reset(2 * double(tau1 - tau2) / beta - 1);
+      f = tau1 > tau2 ? 1 : -1;
+    }
+    double next() { return f * l_gen.next(); }
+  };
 
   // Measure one block of G^2(iomega,inu,inu')
   template <g2_channel Channel, block_order Order> struct measure_g2_inu {
