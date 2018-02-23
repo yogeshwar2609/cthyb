@@ -214,8 +214,10 @@ namespace cthyb {
     for (auto &g2_iw : G2_iw) g2_iw /= (real(average_sign) * data.config.beta());
     // G2_iw = G2_iw / (real(average_sign) * data.config.beta()); // This segfaults on triqs/unstable da793fbd
 
-    std::cout << "measure/G2_iw: timer_M  = " << double(timer_M) << "\n";
-    std::cout << "measure/G2_iw: timer_G2 = " << double(timer_G2) << "\n";
+    if(triqs::mpi::communicator().rank() == 0) {
+      std::cout << "measure/G2_iw: timer_M  = " << double(timer_M) << "\n";
+      std::cout << "measure/G2_iw: timer_G2 = " << double(timer_G2) << "\n";
+    }
   }
 
   template class measure_G2_iw<G2_channel::AllFermionic>;
