@@ -6,10 +6,10 @@ from cpp2py.wrap_generator import *
 module = module_(full_name = "solver_core", doc = "The cthyb solver", app_name = "cthyb")
 
 # Imports
+import pytriqs.atom_diag
 import pytriqs.gf
 import pytriqs.operators
 import pytriqs.statistics.histograms
-import pytriqs.atom_diag 
 
 # Add here all includes
 module.add_include("../../cthyb/solver_core.hpp")
@@ -23,6 +23,7 @@ module.add_preamble("""
 #include <cpp2py/converters/string.hpp>
 #include <cpp2py/converters/variant.hpp>
 #include <cpp2py/converters/vector.hpp>
+#include <triqs/cpp2py_converters/arrays.hpp>
 #include <triqs/cpp2py_converters/gf.hpp>
 #include <triqs/cpp2py_converters/operators_real_complex.hpp>
 
