@@ -137,6 +137,7 @@ namespace cthyb {
     /// Status of the ``solve()`` on exit.
     int solve_status() const { return _solve_status; }
 
+    CPP2PY_IGNORE
     static std::string hdf5_scheme() { return "CTHYB_SolverCore"; }
 
     // Function that writes the solver_core to hdf5 file
@@ -154,6 +155,7 @@ namespace cthyb {
     }
 
     // Function that read all containers to hdf5 file
+    CPP2PY_IGNORE
     static solver_core h5_read_construct(triqs::h5::group h5group, std::string subgroup_name) {
       triqs::h5::group grp   = subgroup_name.empty() ? h5group : h5group.open_group(subgroup_name);
       auto constr_parameters = triqs::h5::h5_read<constr_parameters_t>(grp, "constr_parameters");
