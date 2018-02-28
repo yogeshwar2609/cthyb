@@ -72,7 +72,7 @@ endif()
 if (${TRIQS_WITH_PYTHON_SUPPORT})
 
  # Python interface
- add_subdirectory(python/cthyb)
+ add_subdirectory(python/triqs_cthyb)
 
  # Build the documentation
  if (${Documentation})
