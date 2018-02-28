@@ -68,8 +68,10 @@ install(TARGETS cthyb_c DESTINATION lib)
 
 # FIXME : WHY DO WE INSTALL HEADERS HERE ??
 set(HEADERS_TO_INSTALL
- #array_suppl.hpp # FIXME
+    array_suppl.hpp # FIXME
+    types.hpp
     parameters.hpp
+    container_set.hpp
     solver_core.hpp
     config.hpp
 )
