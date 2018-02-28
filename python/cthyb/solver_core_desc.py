@@ -1,9 +1,9 @@
 # Generated automatically using the command :
-# c++2py ../../cthyb/solver_core.hpp -p -a cthyb -m solver_core -o solver_core --moduledoc="The cthyb solver" --cxxflags="-std=c++17" -C pytriqs --only="solver_core block_order" -N cthyb -I../../app_atom_diag --include /opt/local/include --include /opt/local/include/openmpi-clang50/
+# c++2py ../../cthyb/solver_core.hpp -p -a triqs_cthyb -m solver_core -o solver_core --moduledoc="The cthyb solver" --cxxflags="-std=c++17" -C pytriqs --only="solver_core block_order" -N cthyb -I../../app_atom_diag --include /opt/local/include --include /opt/local/include/openmpi-clang50/
 from cpp2py.wrap_generator import *
 
 # The module
-module = module_(full_name = "solver_core", doc = "The cthyb solver", app_name = "cthyb")
+module = module_(full_name = "solver_core", doc = "The cthyb solver", app_name = "triqs_cthyb")
 
 # Imports
 import pytriqs.atom_diag
