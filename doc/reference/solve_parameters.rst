@@ -3,4 +3,3 @@
 solve() parameters
 ==================
 
-.. include:: parameters.rst
